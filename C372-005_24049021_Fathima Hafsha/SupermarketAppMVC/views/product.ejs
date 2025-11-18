@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+
+<h2><%= product.productName %></h2>
+
+<img src="/images/<%= product.image %>" width="250">
+<p>Price: $<%= product.price %></p>
+<p>Stock: <%= product.quantity %></p>
+
+<form action="/add-to-cart/<%= product.id %>" method="POST">
+    <input type="number" name="quantity" value="1" min="1">
+    <button type="submit">Add to Cart</button>
+</form>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+
+<h2>Inventory (Admin)</h2>
+<a href="/addproduct">+ Add Product</a>
+
+<table border="1" cellpadding="10">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Image</th>
+        <th>Actions</th>
+    </tr>
+
+    <% products.forEach(p => { %>
+        <tr class="<%= p.lowStock ? 'low-stock' : '' %>">
+            <td><%= p.id %></td>
+            <td><%= p.productName %></td>
+            <td><%= p.quantity %></td>
+            <td>$<%= p.price %></td>
+            <td><img src="/images/<%= p.image %>" width="80"></td>
+            <td>
+                <a href="/updateproduct/<%= p.id %>">Edit</a> |
+                <form action="/deleteproduct/<%= p.id %>?_method=DELETE" method="POST" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Delete?')">Delete</button>
+                </form>
+            </td>
+        </tr>
+    <% }) %>
+</table>
+
+<%- include('partials/footer') %>

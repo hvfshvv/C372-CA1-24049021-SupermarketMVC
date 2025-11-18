@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+
+<h2>Login</h2>
+
+<% if (messages.error) { %>
+    <p style="color:red;"><%= messages.error %></p>
+<% } %>
+<% if (success) { %>
+    <p style="color:green;"><%= success %></p>
+<% } %>
+
+<form action="/login" method="POST">
+    <label>Email:</label><br>
+    <input type="email" name="email" required><br><br>
+
+    <label>Password:</label><br>
+    <input type="password" name="password" required><br><br>
+
+    <button type="submit">Login</button>
+</form>
+
+<%- include('partials/footer') %>
