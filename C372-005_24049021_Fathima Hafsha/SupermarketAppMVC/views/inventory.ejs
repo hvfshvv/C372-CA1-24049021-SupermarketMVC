@@ -10,6 +10,7 @@
             <th>ID</th>
             <th>Image</th>
             <th>Name</th>
+            <th>Category</th>
             <th>Qty</th>
             <th>Price ($)</th>
             <th>Actions</th>
@@ -19,14 +20,38 @@
     <tbody>
         <% products.forEach(p => { %>
             <tr class="<%= p.quantity < 10 ? 'table-danger' : '' %>">
+
                 <td><%= p.id %></td>
-                <td><img src="/images/<%= p.image %>" style="height:60px; width:60px; object-fit:cover;"></td>
-                <td><%= p.productName %></td>
-                <td><%= p.quantity %></td>
-                <td><%= p.price %></td>
 
                 <td>
-                    <a href="/updateproduct/<%= p.id %>" class="btn btn-warning btn-sm">Edit</a>
+                    <img src="/images/<%= p.image %>" 
+                         style="height:60px; width:60px; object-fit:cover;">
+                </td>
+
+                <td><%= p.productName %></td>
+
+                <!-- CATEGORY BADGE -->
+                <td>
+                    <span class="badge 
+                        <% if (p.category === 'Fruits') { %> bg-success 
+                        <% } else if (p.category === 'Vegetables') { %> bg-success 
+                        <% } else if (p.category === 'Dairy') { %> bg-primary 
+                        <% } else if (p.category === 'Bakery') { %> bg-warning text-dark
+                        <% } else if (p.category === 'Beverages') { %> bg-info text-dark
+                        <% } else if (p.category === 'Snacks') { %> bg-danger 
+                        <% } else { %> bg-secondary <% } %>
+                    ">
+                        <%= p.category %>
+                    </span>
+                </td>
+
+                <td><%= p.quantity %></td>
+
+                <td>$<%= p.price %></td>
+
+                <td>
+                    <a href="/updateproduct/<%= p.id %>" 
+                       class="btn btn-warning btn-sm mb-1">Edit</a>
 
                     <form action="/deleteproduct/<%= p.id %>" method="POST" style="display:inline;">
                         <button class="btn btn-danger btn-sm">Delete</button>
@@ -36,5 +61,6 @@
         <% }) %>
     </tbody>
 </table>
+
 
 <%- include("partials/footer"); %>

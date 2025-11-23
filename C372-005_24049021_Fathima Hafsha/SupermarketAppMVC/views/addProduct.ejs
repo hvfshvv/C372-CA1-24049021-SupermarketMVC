@@ -19,13 +19,26 @@
         <input type="number" name="price" step="0.01" class="form-control" required>
     </div>
 
+    <!-- CATEGORY DROPDOWN ADDED -->
+    <div class="mb-3">
+        <label>Category</label>
+        <select name="category" class="form-select">
+            <option value="Fruits">Fruits</option>
+            <option value="Vegetables">Vegetables</option>
+            <option value="Dairy">Dairy</option>
+            <option value="Bakery">Bakery</option>
+            <option value="Beverages">Beverages</option>
+            <option value="Snacks">Snacks</option>
+            <option value="Other">Other</option>
+        </select>
+    </div>
+
     <div class="mb-3">
         <label>Image</label>
         <input type="file" name="image" class="form-control" required>
     </div>
 
     <button class="btn btn-success">Add Product</button>
-
 </form>
 
 <%- include("partials/footer"); %>

@@ -1,43 +1,88 @@
 <%- include("partials/header"); %>
 
+<!-- SAFE PATCH -->
+<% const searchValue = typeof locals.search !== "undefined" ? locals.search : ""; %>
+<% const categoryValue = typeof locals.category !== "undefined" ? locals.category : ""; %>
+
 <h2 class="fw-bold mb-4">Supermarket Products</h2>
 
-<div class="row">
+<!-- ================================ -->
+<!-- SEARCH + CATEGORY FILTER BAR     -->
+<!-- ================================ -->
+<form method="GET" action="/shop" class="d-flex align-items-center gap-3 mb-4">
+
+    <!-- SEARCH BAR -->
+    <input 
+        type="text"
+        name="search"
+        class="form-control"
+        placeholder="Search products..."
+        style="max-width: 300px;"
+        value="<%= searchValue %>"
+    >
+
+    <!-- CATEGORY DROPDOWN -->
+    <select 
+        name="category"
+        class="form-select"
+        style="max-width: 200px;"
+    >
+        <option value="">All Categories</option>
+        <option value="Fruits" <%= categoryValue === "Fruits" ? "selected" : "" %>>Fruits</option>
+        <option value="Vegetables" <%= category === "Vegetables" ? "selected" : "" %>>Vegetables</option>
+        <option value="Dairy"      <%= category === "Dairy" ? "selected" : "" %>>Dairy</option>
+        <option value="Bakery"     <%= category === "Bakery" ? "selected" : "" %>>Bakery</option>
+        <option value="Beverages"  <%= category === "Beverages" ? "selected" : "" %>>Beverages</option>
+        <option value="Snacks"     <%= category === "Snacks" ? "selected" : "" %>>Snacks</option>
+        <option value="Other"      <%= category === "Other" ? "selected" : "" %>>Other</option>
+    </select>
+
+    <button class="btn btn-primary">Apply</button>
+</form>
+
+<!-- ================================ -->
+<!-- PRODUCT GRID                     -->
+<!-- ================================ -->
+<div class="product-container">
+
     <% products.forEach(p => { %>
-        <div class="col-md-4 mb-4">
 
-            <div class="card shadow-sm h-100">
+        <div class="product-card">
 
-                <!-- Product Image -->
-                <img src="/images/<%= p.image %>" class="card-img-top" style="height: 220px; object-fit: cover;">
+            <!-- PRODUCT IMAGE -->
+            <img src="/images/<%= p.image %>" alt="Product Image">
 
-                <div class="card-body d-flex flex-column">
+            <!-- PRODUCT NAME -->
+            <h5 class="fw-bold mt-2 mb-1"><%= p.productName %></h5>
 
-                    <h5 class="card-title fw-bold"><%= p.productName %></h5>
+            <!-- CATEGORY -->
+            <p class="small text-secondary mb-1">
+                <strong>Category:</strong> <%= p.category %>
+            </p>
 
-                    <p class="card-text text-muted">
-                        <strong>Price:</strong> $<%= p.price.toFixed(2) %><br>
-                        <strong>Stock:</strong>
-                        <% if (p.lowStock) { %>
-                            <span class="text-danger">Low Stock!</span>
-                        <% } else { %>
-                            <%= p.quantity %>
-                        <% } %>
-                    </p>
+            <!-- PRICE & STOCK -->
+            <p class="text-muted mb-2">
+                <strong>Price:</strong> $<%= p.price.toFixed(2) %><br>
+                <strong>Stock:</strong>
+                <% if (p.lowStock) { %>
+                    <span class="text-danger">Low Stock!</span>
+                <% } else { %>
+                    <%= p.quantity %>
+                <% } %>
+            </p>
 
-                    <div class="mt-auto">
-                        <a href="/product/<%= p.id %>" class="btn btn-outline-primary w-100 mb-2">View Details</a>
+            <!-- VIEW DETAILS BUTTON -->
+            <a href="/product/<%= p.id %>" class="btn btn-view w-100 mb-2">View Details</a>
 
-                        <form action="/add-to-cart/<%= p.id %>" method="POST">
-                            <button class="btn btn-success w-100">Add to Cart</button>
-                        </form>
-                    </div>
-
-                </div>
-            </div>
+            <!-- ADD TO CART BUTTON -->
+            <form action="/add-to-cart/<%= p.id %>" method="POST">
+                <button class="btn btn-add w-100">Add to Cart</button>
+            </form>
 
         </div>
-    <% }); %>
+
+    <% }) %>
+
 </div>
 
 <%- include("partials/footer"); %>

@@ -30,7 +30,7 @@ const upload = multer({ storage });
 // ----------------------------
 // Express config
 // ----------------------------
-app.set('views', path.join(__dirname, 'views'));   // 👈 IMPORTANT
+app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
 app.use(express.static('public'));
@@ -68,7 +68,7 @@ const checkAuthenticated = (req, res, next) => {
 const checkAdmin = (req, res, next) => {
     if (req.session.user && req.session.user.role === 'admin') return next();
     req.flash('error', 'Access denied');
-    res.redirect('/shopping');
+    res.redirect('/shop');
 };
 
 // ----------------------------
@@ -79,7 +79,7 @@ const checkAdmin = (req, res, next) => {
 app.get('/', (req, res) => {
     if (req.session && req.session.user) {
         if (req.session.user.role === 'admin') return res.redirect('/inventory');
-        return res.redirect('/shopping');
+        return res.redirect('/shop');
     }
     return res.redirect('/login');
 });
@@ -93,9 +93,13 @@ app.post('/login', UserController.login);
 
 app.get('/logout', UserController.logout);
 
-// Product listing
+// Product listing (ADMIN + USER)
 app.get('/inventory', checkAuthenticated, checkAdmin, ProductController.list);
-app.get('/shopping', ProductController.list);
+
+// THE IMPORTANT FIX — your UI uses /shop
+app.get('/shop', ProductController.list);
+app.get('/shopping', ProductController.list);  // optional backup
+
 
 // Product details
 app.get('/product/:id', ProductController.getById);
@@ -142,26 +146,13 @@ app.put('/updateproduct/:id',
     ProductController.update
 );
 
-app.get('/deleteproduct/:id',
-    checkAuthenticated,
-    checkAdmin,
-    ProductController.delete
-);
-
 app.post('/deleteproduct/:id',
     checkAuthenticated,
     checkAdmin,
     ProductController.delete
 );
 
-app.delete('/deleteproduct/:id',
-    checkAuthenticated,
-    checkAdmin,
-    ProductController.delete
-);
-
-// Cart routes (CartController)
-// CART ROUTES
+// Cart routes
 app.post('/add-to-cart/:id', checkAuthenticated, CartController.add);
 app.get('/cart', checkAuthenticated, CartController.view);
 app.post('/cart/delete/:id', checkAuthenticated, CartController.delete);

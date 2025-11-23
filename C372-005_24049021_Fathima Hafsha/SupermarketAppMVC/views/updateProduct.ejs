@@ -3,6 +3,7 @@
 <h2>Update Product</h2>
 
 <form action="/updateproduct/<%= product.id %>?_method=PUT" method="POST" enctype="multipart/form-data">
+
     <label>Name:</label>
     <input type="text" name="productName" value="<%= product.productName %>" required><br><br>
 
@@ -11,6 +12,19 @@
 
     <label>Price:</label>
     <input type="number" name="price" value="<%= product.price %>" step="0.01" required><br><br>
+
+    <!-- CATEGORY DROPDOWN ADDED -->
+    <label>Category:</label>
+    <select name="category" required>
+        <option value="Fruits"     <%= product.category === "Fruits" ? "selected" : "" %>>Fruits</option>
+        <option value="Vegetables" <%= product.category === "Vegetables" ? "selected" : "" %>>Vegetables</option>
+        <option value="Dairy"      <%= product.category === "Dairy" ? "selected" : "" %>>Dairy</option>
+        <option value="Bakery"     <%= product.category === "Bakery" ? "selected" : "" %>>Bakery</option>
+        <option value="Beverages"  <%= product.category === "Beverages" ? "selected" : "" %>>Beverages</option>
+        <option value="Snacks"     <%= product.category === "Snacks" ? "selected" : "" %>>Snacks</option>
+        <option value="Other"      <%= product.category === "Other" ? "selected" : "" %>>Other</option>
+    </select>
+    <br><br>
 
     <label>Current Image:</label><br>
     <img src="/images/<%= product.image %>" width="150"><br><br>

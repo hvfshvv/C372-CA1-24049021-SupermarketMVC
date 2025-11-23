@@ -1,142 +1,120 @@
-/* ---------- GENERAL LAYOUT ---------- */
 
-body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #fafafa;
-    margin: 0;
-    padding: 0;
+/* Make table images look neat */
+table img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
 }
 
-.container {
-    width: 90%;
-    max-width: 900px;
-    margin: 20px auto;
+/* Ensure all table cells align nicely */
+table td {
+    vertical-align: middle;
 }
 
-/* ---------- NAVBAR ---------- */
+.btn-delete {
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-left: 5px;
+}
 
-nav {
-    background: #fff;
-    border-bottom: 1px solid #ddd;
-    padding: 12px 20px;
+.btn-edit {
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.action-buttons {
     display: flex;
-    justify-content: space-between;
+    gap: 8px;
     align-items: center;
 }
 
-nav a {
-    margin-right: 15px;
-    text-decoration: none;
-    color: #333;
-    font-weight: bold;
-}
+/* ---------- FIX ACTIONS COLUMN BACKGROUND ---------- */
 
-nav a:hover {
-    color: #007bff;
-}
-
-/* ---------- HEADERS ---------- */
-
-h2 {
-    margin-bottom: 15px;
-    color: #222;
-}
-
-/* ---------- FORMS ---------- */
-
-form {
-    background: #fff;
-    padding: 20px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
-}
-
-form input, form select {
-    width: 100%;
-    padding: 8px 10px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-button {
-    padding: 10px 16px;
-    background: #007bff;
-    border: none;
-    border-radius: 4px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #0056b3;
-}
-
-/* ---------- PRODUCT GRID (SHOPPING PAGE) ---------- */
-
-.product-card {
-    width: 200px;
-    background: #fff;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    text-align: center;
-    box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
-}
-
-.product-card img {
-    width: 140px;
-    height: auto;
-    margin-bottom: 10px;
-}
-
-.product-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-/* ---------- TABLES ---------- */
-
-table {
-    width: 100%;
-    background: #fff;
-    border-collapse: collapse;
-    margin-top: 15px;
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
-}
-
-th {
-    background: #007bff;
-    color: white;
-    padding: 12px;
-    text-align: left;
-}
-
-td {
-    padding: 12px;
+/* Always keep Actions column clean, no stripe or red overlay */
+td.action-buttons {
+    background: #ffffff !important;
     border-bottom: 1px solid #eee;
 }
 
-tr:nth-child(even) {
-    background: #f9f9f9;
+/* Also reset hover or danger row effect only for the Actions cell */
+tr.table-danger td.action-buttons {
+    background: #ffffff !important;
 }
 
-/* Low stock highlight */
-.low-stock {
-    background: #ffebee !important;
+/* ---------- SHOP PAGE GRID  ---------- */
+
+.product-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 25px;
+    justify-items: center;
+    margin-top: 20px;
 }
 
-/* ---------- FOOTER ---------- */
-
-footer {
-    text-align: center;
+.product-card {
+    width: 100%;
+    max-width: 220px;
+    background: #fff;
     padding: 15px;
-    color: #777;
-    margin-top: 30px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
+    transition: transform 0.15s ease-in-out;
+}
+
+.product-card:hover {
+    transform: scale(1.03);
+}
+
+.product-card img {
+    width: 180px;
+    height: 140px;
+    object-fit: contain;
+    margin-bottom: 12px;
+}
+
+/* ---------- SHOP BUTTONS FIX ---------- */
+
+/* View Details Button */
+.btn-view {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid #007bff;
+    background: white;
+    color: #007bff;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: 0.2s ease-in-out;
+    text-align: center;
+}
+
+.btn-view:hover {
+    background: #e7f1ff;
+    border-color: #0056b3;
+    color: #0056b3;
+}
+
+/* Add to Cart Button */
+.btn-add {
+    display: block;
+    width: 100%;
+    padding: 10px 10px;
+    background: #198754;
+    color: white;
+    font-weight: 700;
+    border-radius: 6px;
+    transition: 0.2s ease-in-out;
+    text-align: center;
+    border: none;
+}
+
+.btn-add:hover {
+    background: #0f5f39;
 }
