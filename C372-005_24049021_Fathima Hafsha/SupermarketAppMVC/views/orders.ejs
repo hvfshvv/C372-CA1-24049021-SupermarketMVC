@@ -17,11 +17,17 @@
             </tr>
         </thead>
         <tbody>
-            <% orders.forEach(o => { %>
+            <% orders.forEach(o => { 
+                const dateStr = (o.order_date instanceof Date)
+                    ? o.order_date.toLocaleString()
+                    : String(o.order_date);
+
+                const totalNum = Number(o.total_amount) || 0;
+            %>
                 <tr>
                     <td>#<%= o.id %></td>
-                    <td><%= o.order_date.toLocaleString ? o.order_date.toLocaleString() : o.order_date %></td>
-                    <td><%= o.total_amount.toFixed ? o.total_amount.toFixed(2) : o.total_amount %></td>
+                    <td><%= dateStr %></td>
+                    <td><%= totalNum.toFixed(2) %></td>
                     <td>
                         <a href="/invoice/<%= o.id %>" class="btn btn-sm btn-outline-primary">
                             Download Invoice

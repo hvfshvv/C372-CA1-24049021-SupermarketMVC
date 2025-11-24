@@ -1,3 +1,4 @@
+// app.js
 const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
@@ -16,7 +17,6 @@ const CartController = require('./controllers/cartController');
 const UserController = require('./controllers/userController');
 const InvoiceController = require('./controllers/invoiceController');
 const OrderController = require('./controllers/orderController');
-
 const Product = require('./models/Product');
 
 // ----------------------------
@@ -65,6 +65,20 @@ const checkAuthenticated = (req, res, next) => {
     res.redirect('/login');
 };
 
+// Everyone who wants to SHOP must have 2FA enabled
+const ensure2FA = (req, res, next) => {
+    const user = req.session.user;
+    if (!user) {
+        req.flash('error', 'Please log in first');
+        return res.redirect('/login');
+    }
+    if (!user.twofa_enabled) {
+        req.flash('error', 'You must enable 2FA before using this feature.');
+        return res.redirect('/2fa/setup');
+    }
+    next();
+};
+
 const checkAdmin = (req, res, next) => {
     if (req.session.user && req.session.user.role === 'admin') return next();
     req.flash('error', 'Access denied');
@@ -84,29 +98,42 @@ app.get('/', (req, res) => {
     return res.redirect('/login');
 });
 
-// Auth
+// ----------------------------
+// AUTH ROUTES
+// ----------------------------
 app.get('/register', UserController.registerForm);
 app.post('/register', UserController.register);
 app.get('/login', UserController.loginForm);
 app.post('/login', UserController.login);
 app.get('/logout', UserController.logout);
 
-// Product listing
-app.get('/inventory', checkAuthenticated, checkAdmin, ProductController.list);
-app.get('/shop', ProductController.list);
-app.get('/shopping', ProductController.list); // backup
+// 2FA ROUTES
+app.get('/2fa/setup', checkAuthenticated, UserController.show2FASetup);
+app.post('/2fa/setup', checkAuthenticated, UserController.verify2FASetup);
+app.get('/2fa/verify', UserController.show2FAVerify);      // from login step
+app.post('/2fa/verify', UserController.verify2FAVerify);
 
-// Product details
+// ----------------------------
+// Product listing (public browse OK)
+// ----------------------------
+app.get('/shop', ProductController.list);
+app.get('/shopping', ProductController.list); // backup alias
+
+// Admin inventory (must be logged in + 2FA + admin)
+app.get('/inventory', checkAuthenticated, ensure2FA, checkAdmin, ProductController.list);
+
+// Product details (public)
 app.get('/product/:id', ProductController.getById);
 
 // Admin product CRUD
-app.get('/addproduct', checkAuthenticated, checkAdmin, (req, res) => {
+app.get('/addproduct', checkAuthenticated, ensure2FA, checkAdmin, (req, res) => {
     res.render('addProduct', { user: req.session.user });
 });
 
 app.post(
     '/addproduct',
     checkAuthenticated,
+    ensure2FA,
     checkAdmin,
     upload.single('image'),
     ProductController.add
@@ -115,6 +142,7 @@ app.post(
 app.get(
     '/updateproduct/:id',
     checkAuthenticated,
+    ensure2FA,
     checkAdmin,
     (req, res) => {
         const id = req.params.id;
@@ -132,6 +160,7 @@ app.get(
 app.post(
     '/updateproduct/:id',
     checkAuthenticated,
+    ensure2FA,
     checkAdmin,
     upload.single('image'),
     ProductController.update
@@ -140,6 +169,7 @@ app.post(
 app.put(
     '/updateproduct/:id',
     checkAuthenticated,
+    ensure2FA,
     checkAdmin,
     upload.single('image'),
     ProductController.update
@@ -148,25 +178,30 @@ app.put(
 app.post(
     '/deleteproduct/:id',
     checkAuthenticated,
+    ensure2FA,
     checkAdmin,
     ProductController.delete
 );
 
-// Cart
-app.post('/add-to-cart/:id', checkAuthenticated, CartController.add);
-app.get('/cart', checkAuthenticated, CartController.view);
-app.post('/cart/delete/:id', checkAuthenticated, CartController.delete);
+// ----------------------------
+// Cart (must be logged in + 2FA)
+// ----------------------------
+app.post('/add-to-cart/:id', checkAuthenticated, ensure2FA, CartController.add);
+app.get('/cart', checkAuthenticated, ensure2FA, CartController.view);
+app.post('/cart/delete/:id', checkAuthenticated, ensure2FA, CartController.delete);
 
-// Checkout
-app.get('/checkout', checkAuthenticated, CartController.checkoutPage);
-app.post('/checkout/confirm', checkAuthenticated, CartController.confirmOrder);
-app.get('/checkout/success', checkAuthenticated, CartController.successPage);
+// ----------------------------
+// Checkout (must be logged in + 2FA)
+// ----------------------------
+app.get('/checkout', checkAuthenticated, ensure2FA, CartController.checkoutPage);
+app.post('/checkout/confirm', checkAuthenticated, ensure2FA, CartController.confirmOrder);
+app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.successPage);
 
-// Orders (history)
-app.get('/orders', checkAuthenticated, OrderController.list);
-
-// Invoice download
-app.get('/invoice/:id', checkAuthenticated, InvoiceController.download);
+// ----------------------------
+// Orders (history) + Invoice (must be logged in + 2FA)
+// ----------------------------
+app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
+app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);
 
 // ----------------------------
 // Server start

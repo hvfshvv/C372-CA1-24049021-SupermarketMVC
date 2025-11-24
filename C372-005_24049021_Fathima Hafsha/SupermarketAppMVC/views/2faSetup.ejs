@@ -1,0 +1,43 @@
+<%- include("partials/header"); %>
+
+<div class="row justify-content-center mt-4 mb-5">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h3 class="mb-3 text-center">Set Up 2FA (Google Authenticator)</h3>
+
+        <p class="text-muted">
+          1. Install <strong>Google Authenticator</strong> or any authenticator app on your phone.<br>
+          2. Scan the QR code below, or enter the secret key manually.<br>
+          3. Then enter the 6-digit code from your app to complete setup.
+        </p>
+
+        <div class="text-center my-3">
+          <img src="<%= qrCode %>" alt="2FA QR Code" class="img-fluid" style="max-width: 250px;">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Secret Key (manual entry)</label>
+          <input type="text" class="form-control" readonly value="<%= secret %>">
+        </div>
+
+        <form action="/2fa/setup" method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Enter 6-digit code from app</label>
+            <input type="text" name="token" class="form-control" placeholder="123456" required>
+          </div>
+
+          <button class="btn btn-success w-100 fw-bold">
+            Enable 2FA
+          </button>
+        </form>
+
+        <a href="/logout" class="btn btn-link d-block text-center mt-3">
+          Cancel and Logout
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include("partials/footer"); %>

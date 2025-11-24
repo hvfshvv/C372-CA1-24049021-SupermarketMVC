@@ -12,13 +12,15 @@ const Order = {
         });
     },
 
-    addItem(orderId, productId, name, price, qty, callback) {
+    // Insert order items
+    addItem: (orderId, productId, name, price, qty, callback) => {
         const sql = `
-            INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
-            VALUES (?, ?, ?, ?, ?)
-        `;
+        INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
+        VALUES (?, ?, ?, ?, ?)
+    `;
         db.query(sql, [orderId, productId, name, price, qty], callback);
     },
+
 
     getById(orderId, callback) {
         db.query(`SELECT * FROM orders WHERE id = ?`, [orderId], (err, results) => {
