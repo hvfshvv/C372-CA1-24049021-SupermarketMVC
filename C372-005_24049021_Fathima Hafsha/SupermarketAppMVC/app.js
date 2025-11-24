@@ -14,6 +14,8 @@ const app = express();
 const ProductController = require('./controllers/productController');
 const CartController = require('./controllers/cartController');
 const UserController = require('./controllers/userController');
+const InvoiceController = require('./controllers/invoiceController');
+const OrderController = require('./controllers/orderController');
 
 const Product = require('./models/Product');
 
@@ -32,7 +34,6 @@ const upload = multer({ storage });
 // ----------------------------
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
-
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));
@@ -48,7 +49,6 @@ app.use(session({
 }));
 app.use(flash());
 
-// Make user, messages, cartCount available in all EJS
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     res.locals.messages = req.flash();
@@ -77,46 +77,43 @@ const checkAdmin = (req, res, next) => {
 
 // Home – redirect based on role
 app.get('/', (req, res) => {
-    if (req.session && req.session.user) {
+    if (req.session.user) {
         if (req.session.user.role === 'admin') return res.redirect('/inventory');
         return res.redirect('/shop');
     }
     return res.redirect('/login');
 });
 
-// Auth (UserController)
+// Auth
 app.get('/register', UserController.registerForm);
 app.post('/register', UserController.register);
-
 app.get('/login', UserController.loginForm);
 app.post('/login', UserController.login);
-
 app.get('/logout', UserController.logout);
 
-// Product listing (ADMIN + USER)
+// Product listing
 app.get('/inventory', checkAuthenticated, checkAdmin, ProductController.list);
-
-// THE IMPORTANT FIX — your UI uses /shop
 app.get('/shop', ProductController.list);
-app.get('/shopping', ProductController.list);  // optional backup
-
+app.get('/shopping', ProductController.list); // backup
 
 // Product details
 app.get('/product/:id', ProductController.getById);
 
-// Product CRUD (admin only)
+// Admin product CRUD
 app.get('/addproduct', checkAuthenticated, checkAdmin, (req, res) => {
     res.render('addProduct', { user: req.session.user });
 });
 
-app.post('/addproduct',
+app.post(
+    '/addproduct',
     checkAuthenticated,
     checkAdmin,
     upload.single('image'),
     ProductController.add
 );
 
-app.get('/updateproduct/:id',
+app.get(
+    '/updateproduct/:id',
     checkAuthenticated,
     checkAdmin,
     (req, res) => {
@@ -132,36 +129,44 @@ app.get('/updateproduct/:id',
     }
 );
 
-app.post('/updateproduct/:id',
+app.post(
+    '/updateproduct/:id',
     checkAuthenticated,
     checkAdmin,
     upload.single('image'),
     ProductController.update
 );
 
-app.put('/updateproduct/:id',
+app.put(
+    '/updateproduct/:id',
     checkAuthenticated,
     checkAdmin,
     upload.single('image'),
     ProductController.update
 );
 
-app.post('/deleteproduct/:id',
+app.post(
+    '/deleteproduct/:id',
     checkAuthenticated,
     checkAdmin,
     ProductController.delete
 );
 
-// Cart routes
+// Cart
 app.post('/add-to-cart/:id', checkAuthenticated, CartController.add);
 app.get('/cart', checkAuthenticated, CartController.view);
 app.post('/cart/delete/:id', checkAuthenticated, CartController.delete);
-app.delete('/cart/delete/:id', checkAuthenticated, CartController.delete);
 
 // Checkout
 app.get('/checkout', checkAuthenticated, CartController.checkoutPage);
 app.post('/checkout/confirm', checkAuthenticated, CartController.confirmOrder);
 app.get('/checkout/success', checkAuthenticated, CartController.successPage);
+
+// Orders (history)
+app.get('/orders', checkAuthenticated, OrderController.list);
+
+// Invoice download
+app.get('/invoice/:id', checkAuthenticated, InvoiceController.download);
 
 // ----------------------------
 // Server start

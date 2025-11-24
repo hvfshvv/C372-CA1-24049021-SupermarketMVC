@@ -1,46 +1,61 @@
 <%- include("partials/header"); %>
 
-<h2 class="mb-4 fw-bold">Your Cart</h2>
+    <h2 class="mb-4 fw-bold">Your Cart</h2>
 
-<% if (cart.length === 0) { %>
-    <div class="alert alert-info text-center">
-        Your cart is empty!
-        <br><br>
-        <a href="/shopping" class="btn btn-primary">Continue Shopping</a>
-    </div>
-<% } else { %>
+    <% if (cart.length===0) { %>
+        <div class="alert alert-info text-center">
+            Your cart is empty!
+            <br><br>
+            <a href="/shopping" class="btn btn-primary">Continue Shopping</a>
+        </div>
+        <% } else { %>
 
-    <div class="row">
-        <% cart.forEach(item => { %>
-            <div class="col-md-4 mb-4">
-                <div class="card shadow-sm h-100">
+            <div class="row">
+                <% cart.forEach(item=> { %>
+                    <div class="col-md-4 mb-4">
+                        <div class="card shadow-sm h-100">
 
-                    <!-- Product image -->
-                    <img src="/images/<%= item.image %>" class="card-img-top" style="height: 200px; object-fit: cover;">
+                            <!-- Product image -->
+                            <img src="/images/<%= item.image %>" class="card-img-top"
+                                style="height: 200px; object-fit: cover;">
 
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold"><%= item.productName %></h5>
+                            <div class="card-body">
+                                <h5 class="card-title fw-bold">
+                                    <%= item.productName %>
+                                </h5>
 
-                        <p class="card-text">
-                            <strong>Quantity:</strong> <%= item.quantity %><br>
-                            <strong>Price:</strong> $<%= item.price.toFixed(2) %><br>
-                            <strong>Line Total:</strong> $<%= (item.price * item.quantity).toFixed(2) %>
-                        </p>
+                                <p class="card-text">
+                                    <strong>Quantity:</strong>
+                                    <%= item.quantity %><br>
+                                        <strong>Price:</strong> $<%= item.price.toFixed(2) %><br>
+                                            <strong>Line Total:</strong> $<%= (item.price * item.quantity).toFixed(2) %>
+                                </p>
 
-                        <form action="/cart/delete/<%= item.id %>" method="POST">
-                            <button class="btn btn-danger w-100">Remove</button>
-                        </form>
+                                <form action="/cart/delete/<%= item.id %>" method="POST">
+                                    <button class="btn btn-danger w-100">Remove</button>
+                                </form>
+                            </div>
+
+                        </div>
                     </div>
-
-                </div>
+                    <% }); %>
             </div>
-        <% }); %>
-    </div>
 
-    <div class="text-end mt-4">
-        <a href="/checkout" class="btn btn-success btn-lg fw-bold">Proceed to Checkout</a>
-    </div>
+            <div class="d-flex justify-content-between mt-4">
 
-<% } %>
+                <!-- Continue Shopping -->
+                <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
+                    Continue Shopping
+                </a>
 
-<%- include("partials/footer"); %>
+                <!-- Proceed to Checkout -->
+                <a href="/checkout" class="btn btn-success btn-lg fw-bold">
+                    Proceed to Checkout
+                </a>
+
+            </div>
+
+
+            <% } %>
+
+                <%- include("partials/footer"); %>

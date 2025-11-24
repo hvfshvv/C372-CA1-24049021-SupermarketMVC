@@ -1,86 +1,128 @@
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 
 const CartController = {
 
-    // Add to cart
     add: (req, res) => {
-        const productId = req.params.id;
-        const quantity = parseInt(req.body.quantity) || 1;
+        const id = req.params.id;
+        const qty = parseInt(req.body.quantity) || 1;
 
-        Product.getById(productId, (err, product) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).send('Error retrieving product');
+        Product.getById(id, (err, product) => {
+            if (err || !product) return res.status(404).send("Product not found");
+
+            if (qty > product.quantity) {
+                req.flash("error", `Only ${product.quantity} left in stock`);
+                return res.redirect("/product/" + id);
             }
-            if (!product) return res.status(404).send('Product not found');
 
             if (!req.session.cart) req.session.cart = [];
+            const existing = req.session.cart.find(i => i.id == id);
 
-            const existingItem = req.session.cart.find(item => item.id == productId);
-
-            if (existingItem) {
-                existingItem.quantity += quantity;
+            if (existing) {
+                if (existing.quantity + qty > product.quantity) {
+                    req.flash("error", `Only ${product.quantity} available`);
+                    return res.redirect("/product/" + id);
+                }
+                existing.quantity += qty;
             } else {
                 req.session.cart.push({
                     id: product.id,
                     productName: product.productName,
                     price: product.price,
-                    quantity,
+                    quantity: qty,
                     image: product.image
                 });
             }
 
-            res.redirect('/cart');
+            res.redirect("/cart");
         });
     },
 
-    // View cart
     view: (req, res) => {
-        const cart = req.session.cart || [];
-        res.render('cart', { cart });
+        res.render("cart", { cart: req.session.cart || [] });
     },
 
-    // Delete from cart
     delete: (req, res) => {
         const id = req.params.id;
-        if (!req.session.cart) req.session.cart = [];
-        req.session.cart = req.session.cart.filter(item => item.id != id);
-        res.redirect('/cart');
+        req.session.cart = (req.session.cart || []).filter(item => item.id != id);
+        res.redirect("/cart");
     },
 
-    // Checkout page
     checkoutPage: (req, res) => {
         const cart = req.session.cart || [];
-        if (cart.length === 0) {
-            req.flash('error', 'Your cart is empty');
-            return res.redirect('/cart');
+
+        if (!cart.length) {
+            req.flash("error", "Your cart is empty");
+            return res.redirect("/shop");
         }
 
         let total = 0;
-        cart.forEach(item => {
-            total += item.price * item.quantity;
-        });
+        cart.forEach(i => total += i.price * i.quantity);
 
-        res.render('checkout', { cart, total });
+        res.render("checkout", { cart, total });
     },
 
-    // Confirm payment
-    confirmOrder: (req, res) => {
-        if (!req.session.cart || req.session.cart.length === 0) {
-            req.flash('error', 'Your cart is empty');
-            return res.redirect('/cart');
+    confirmOrder: async (req, res) => {
+        const cart = req.session.cart || [];
+        const user = req.session.user;
+
+        if (!cart.length) {
+            req.flash("error", "Your cart is empty");
+            return res.redirect("/cart");
         }
 
-        req.session.cart = [];  // Clear cart
+        try {
+            for (let item of cart) {
+                const enough = await new Promise(resolve => {
+                    Product.checkStock(item.id, item.quantity, (err, ok) => resolve(ok));
+                });
 
-        res.redirect('/checkout/success');
+                if (!enough) {
+                    req.flash("error", `Not enough stock for ${item.productName}`);
+                    return res.redirect("/cart");
+                }
+            }
+
+            let total = 0;
+            cart.forEach(i => total += i.price * i.quantity);
+
+            const orderId = await new Promise((resolve, reject) => {
+                Order.create(user.id, total, (err, id) => {
+                    if (err) return reject(err);
+                    resolve(id);
+                });
+            });
+
+            for (let item of cart) {
+                await new Promise((resolve, reject) => {
+                    Order.addItem(orderId, item.id, item.productName, item.price, item.quantity, err => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                });
+            }
+
+            for (let item of cart) {
+                await new Promise(resolve => {
+                    Product.reduceStock(item.id, item.quantity, () => resolve());
+                });
+            }
+
+            req.session.cart = [];
+
+            res.redirect("/checkout/success?orderId=" + orderId);
+
+        } catch (err) {
+            console.error("Checkout error:", err);
+            req.flash("error", "Checkout failed, please try again.");
+            res.redirect("/cart");
+        }
     },
 
-    // Success page
     successPage: (req, res) => {
-        res.render('checkoutSuccess');
+        const orderId = req.query.orderId || null;
+        res.render("checkoutSuccess", { orderId });
     }
-
 };
 
 module.exports = CartController;

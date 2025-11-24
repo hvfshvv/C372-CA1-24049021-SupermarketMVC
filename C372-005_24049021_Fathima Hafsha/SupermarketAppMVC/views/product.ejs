@@ -2,46 +2,45 @@
 
 <div class="row mt-4">
 
-    <!-- LEFT: Product Image -->
     <div class="col-md-5">
         <img src="/images/<%= product.image %>" 
              class="img-fluid rounded shadow-sm"
              style="max-height: 350px; object-fit: cover;">
     </div>
 
-    <!-- RIGHT: Product Info -->
     <div class="col-md-7">
-
-        <h2 class="fw-bold"><%= product.productName %></h2>
-
+    
+        <h2 class="fw-bold">
+            <%= product.productName %>
+        </h2>
+    
         <p class="mt-3">
-            <strong>Price:</strong> 
+            <strong>Price:</strong>
             <span class="text-success fw-bold">$<%= product.price.toFixed(2) %></span>
         </p>
-
+    
         <p>
             <strong>Stock:</strong>
-            <% if (product.quantity < 30) { %>
-                <span class="text-danger">Low Stock!</span>
-            <% } else { %>
-                <%= product.quantity %>
-            <% } %>
+            <% if (product.quantity < 10) { %>
+                <span class="text-danger">Low Stock! (<%= product.quantity %> left)</span>
+                <% } else { %>
+                    <%= product.quantity %>
+                        <% } %>
+    
         </p>
-
+    
         <form action="/add-to-cart/<%= product.id %>" method="POST" class="mt-4">
-
             <label class="fw-bold mb-2">Quantity</label>
-            <input type="number" name="quantity" value="1" min="1" 
-                   max="<%= product.quantity %>"
-                   class="form-control w-25 mb-3">
-
+            <input type="number" name="quantity" value="1" min="1" max="<%= product.quantity %>"
+                class="form-control w-25 mb-3">
+    
             <button class="btn btn-success btn-lg w-100 fw-bold">
                 Add to Cart
             </button>
         </form>
-
+    
         <a href="/shopping" class="btn btn-outline-secondary mt-3 w-100">Back to Store</a>
-
+    
     </div>
 
 </div>

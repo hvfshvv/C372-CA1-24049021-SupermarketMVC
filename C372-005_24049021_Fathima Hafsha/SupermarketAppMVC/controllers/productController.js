@@ -1,5 +1,7 @@
 const Product = require('../models/Product');
 
+const LOW_STOCK_LIMIT = 10;   // 🔥 One rule for entire app
+
 const ProductController = {
 
     list: function (req, res) {
@@ -7,14 +9,14 @@ const ProductController = {
         const category = req.query.category || null;
         const user = req.session?.user || null;
 
-        // Case 1 – Search + Category
+        // CASE 1 — Search + Category
         if (search && category) {
             return Product.searchAndFilter(search, category, (err, products) => {
                 if (err) return res.status(500).send("Internal Server Error");
 
                 products.forEach(p => {
                     p.quantity = Number(p.quantity) || 0;
-                    p.lowStock = p.quantity < 30;
+                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
                 });
 
                 return res.render("shopping", {
@@ -26,14 +28,14 @@ const ProductController = {
             });
         }
 
-        // Case 2 – Category Only
+        // CASE 2 — Category only
         if (category) {
             return Product.filterByCategory(category, (err, products) => {
                 if (err) return res.status(500).send("Internal Server Error");
 
                 products.forEach(p => {
                     p.quantity = Number(p.quantity) || 0;
-                    p.lowStock = p.quantity < 30;
+                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
                 });
 
                 return res.render("shopping", {
@@ -45,14 +47,14 @@ const ProductController = {
             });
         }
 
-        // Case 3 – Search Only
+        // CASE 3 — Search only
         if (search) {
             return Product.search(search, (err, products) => {
                 if (err) return res.status(500).send("Internal Server Error");
 
                 products.forEach(p => {
                     p.quantity = Number(p.quantity) || 0;
-                    p.lowStock = p.quantity < 30;
+                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
                 });
 
                 return res.render("shopping", {
@@ -64,13 +66,13 @@ const ProductController = {
             });
         }
 
-        // Case 4 – Default
+        // CASE 4 — Default (all products)
         Product.getAll((err, products) => {
             if (err) return res.status(500).send("Internal Server Error");
 
             products.forEach(p => {
                 p.quantity = Number(p.quantity) || 0;
-                p.lowStock = p.quantity < 30;
+                p.lowStock = p.quantity < LOW_STOCK_LIMIT;
             });
 
             if (user && user.role === 'admin') {
@@ -92,6 +94,9 @@ const ProductController = {
         Product.getById(id, (err, product) => {
             if (err) return res.status(500).send("Internal Server Error");
             if (!product) return res.status(404).send("Product not found");
+
+            // Apply consistent rule here too
+            product.lowStock = product.quantity < LOW_STOCK_LIMIT;
 
             res.render("product", {
                 product,

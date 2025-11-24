@@ -2,42 +2,31 @@ const db = require('../db');
 
 const Product = {
 
-    // ---------------------------------------------------------
-    // GET ALL PRODUCTS
-    // ---------------------------------------------------------
-    getAll: function (callback) {
+    getAll(callback) {
         const sql = `
             SELECT id, productName, quantity, price, image, category
-            FROM products`;
-        db.query(sql, function (err, results) {
+            FROM products
+        `;
+        db.query(sql, callback);
+    },
+
+    getById(id, callback) {
+        const sql = `
+            SELECT id, productName, quantity, price, image, category
+            FROM products
+            WHERE id = ?
+        `;
+        db.query(sql, [id], (err, results) => {
             if (err) return callback(err);
-            callback(null, results);
+            callback(null, results[0] || null);
         });
     },
 
-    // ---------------------------------------------------------
-    // GET PRODUCT BY ID
-    // ---------------------------------------------------------
-    getById: function (productId, callback) {
+    add(product, callback) {
         const sql = `
-            SELECT id, productName, quantity, price, image, category 
-            FROM products 
-            WHERE id = ?`;
-        db.query(sql, [productId], function (err, results) {
-            if (err) return callback(err);
-            callback(null, results.length ? results[0] : null);
-        });
-    },
-
-    // ---------------------------------------------------------
-    // ADD PRODUCT
-    // ---------------------------------------------------------
-    add: function (product, callback) {
-        const sql = `
-            INSERT INTO products 
-            (productName, quantity, price, image, category)
-            VALUES (?, ?, ?, ?, ?)`;
-
+            INSERT INTO products (productName, quantity, price, image, category)
+            VALUES (?, ?, ?, ?, ?)
+        `;
         const params = [
             product.productName,
             product.quantity,
@@ -45,109 +34,76 @@ const Product = {
             product.image,
             product.category
         ];
-
-        db.query(sql, params, function (err, result) {
-            if (err) return callback(err);
-            callback(null, { insertId: result.insertId });
-        });
+        db.query(sql, params, callback);
     },
 
-    // ---------------------------------------------------------
-    // UPDATE PRODUCT
-    // ---------------------------------------------------------
-    update: function (productId, product, callback) {
+    update(id, product, callback) {
         const sql = `
-            UPDATE products 
-            SET productName = ?, quantity = ?, price = ?, image = ?, category = ?
-            WHERE id = ?`;
-
+            UPDATE products SET 
+            productName=?, quantity=?, price=?, image=?, category=?
+            WHERE id=?
+        `;
         const params = [
             product.productName,
             product.quantity,
             product.price,
             product.image,
             product.category,
-            productId
+            id
         ];
-
-        db.query(sql, params, function (err, result) {
-            if (err) return callback(err);
-            callback(null, { affectedRows: result.affectedRows });
-        });
+        db.query(sql, params, callback);
     },
 
-    // ---------------------------------------------------------
-    // DELETE PRODUCT
-    // ---------------------------------------------------------
-    delete: function (productId, callback) {
-        const sql = `DELETE FROM products WHERE id = ?`;
-        db.query(sql, [productId], function (err, result) {
-            if (err) return callback(err);
-            callback(null, { affectedRows: result.affectedRows });
-        });
+    delete(id, callback) {
+        db.query(`DELETE FROM products WHERE id=?`, [id], callback);
     },
 
-    // ---------------------------------------------------------
-    // SEARCH BY NAME
-    // ---------------------------------------------------------
-    search: function (keyword, callback) {
+    search(keyword, callback) {
+        db.query(
+            `SELECT * FROM products WHERE productName LIKE ?`,
+            [`%${keyword}%`],
+            callback
+        );
+    },
+
+    filterByCategory(category, callback) {
+        db.query(
+            `SELECT * FROM products WHERE category = ?`,
+            [category],
+            callback
+        );
+    },
+
+    searchAndFilter(keyword, category, callback) {
+        db.query(
+            `SELECT * FROM products WHERE productName LIKE ? AND category = ?`,
+            [`%${keyword}%`, category],
+            callback
+        );
+    },
+
+    checkStock(id, qty, callback) {
+        db.query(
+            `SELECT quantity FROM products WHERE id = ?`,
+            [id],
+            (err, results) => {
+                if (err) return callback(err);
+                if (!results.length) return callback(null, false);
+
+                callback(null, results[0].quantity >= qty);
+            }
+        );
+    },
+
+    reduceStock(id, qty, callback) {
         const sql = `
-            SELECT id, productName, quantity, price, image, category
-            FROM products
-            WHERE productName LIKE ?`;
+            UPDATE products 
+            SET quantity = quantity - ?
+            WHERE id = ? AND quantity >= ?
+        `;
 
-        db.query(sql, [`%${keyword}%`], function (err, results) {
-            if (err) return callback(err);
-            callback(null, results);
-        });
-    },
-
-    // ---------------------------------------------------------
-    // GET ALL UNIQUE CATEGORIES
-    // ---------------------------------------------------------
-    getCategories: function (callback) {
-        const sql = `
-            SELECT DISTINCT category 
-            FROM products 
-            ORDER BY category ASC`;
-
-        db.query(sql, function (err, results) {
-            if (err) return callback(err);
-            callback(null, results);
-        });
-    },
-
-    // ---------------------------------------------------------
-    // FILTER BY CATEGORY
-    // ---------------------------------------------------------
-    filterByCategory: function (category, callback) {
-        const sql = `
-            SELECT id, productName, quantity, price, image, category
-            FROM products
-            WHERE category = ?`;
-
-        db.query(sql, [category], function (err, results) {
-            if (err) return callback(err);
-            callback(null, results);
-        });
-    },
-
-    // ---------------------------------------------------------
-    // SEARCH + CATEGORY FILTER COMBINED (OPTIONAL)
-    // ---------------------------------------------------------
-    searchAndFilter: function (keyword, category, callback) {
-        const sql = `
-            SELECT id, productName, quantity, price, image, category
-            FROM products
-            WHERE productName LIKE ?
-            AND category = ?`;
-
-        db.query(sql, [`%${keyword}%`, category], function (err, results) {
-            if (err) return callback(err);
-            callback(null, results);
-        });
+        db.query(sql, [qty, id, qty], callback);
     }
-
 };
 
 module.exports = Product;

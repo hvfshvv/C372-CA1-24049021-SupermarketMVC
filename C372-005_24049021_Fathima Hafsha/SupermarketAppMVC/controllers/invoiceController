@@ -1,0 +1,57 @@
+const PDFDocument = require("pdfkit");
+const Order = require("../models/Order");
+
+const InvoiceController = {
+    download: (req, res) => {
+        const orderId = req.params.id;
+        const user = req.session.user;
+
+        Order.getItems(orderId, (err, items) => {
+            if (err || !items.length)
+                return res.status(404).send("Invoice not found");
+
+            Order.getById(orderId, (err, order) => {
+                if (err || !order)
+                    return res.status(404).send("Order not found");
+
+                if (order.user_id !== user.id && user.role !== "admin") {
+                    return res.status(403).send("Access denied");
+                }
+
+                const doc = new PDFDocument();
+                res.setHeader("Content-Type", "application/pdf");
+                res.setHeader(
+                    "Content-Disposition",
+                    `attachment; filename=invoice-${orderId}.pdf`
+                );
+
+                doc.pipe(res);
+
+                doc.fontSize(22).text("Supermarket Receipt", { align: "center" });
+                doc.moveDown();
+
+                doc.fontSize(12).text(`Order ID: ${orderId}`);
+                doc.text(`Customer: ${user.username}`);
+                doc.text(`Date: ${order.order_date}`);
+                doc.text("----------------------------------------");
+                doc.moveDown();
+
+                items.forEach(i => {
+                    doc.text(
+                        `${i.product_name}  x${i.quantity}  —  $${i.price.toFixed(2)}`
+                    );
+                });
+
+                doc.moveDown();
+                doc.text("----------------------------------------");
+                doc.fontSize(14).text(`Total: $${order.total_amount.toFixed(2)}`, {
+                    align: "right",
+                });
+
+                doc.end();
+            });
+        });
+    }
+};
+
+module.exports = InvoiceController;
