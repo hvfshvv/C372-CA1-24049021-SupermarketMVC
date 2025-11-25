@@ -1,34 +1,39 @@
 <%- include('partials/header') %>
 
-<h2>Register</h2>
+<h2 class="fw-bold mb-4">Register</h2>
 
 <% if (messages.error) { %>
-    <p style="color:red;"><%= messages.error %></p>
+    <div class="alert alert-danger"><%= messages.error %></div>
 <% } %>
 
-<form action="/register" method="POST">
-    <label>Username:</label>
-    <input type="text" name="username" required><br><br>
+<form action="/register" method="POST" class="card p-4 shadow-sm">
+    
+    <div class="mb-3">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" class="form-control" required>
+    </div>
 
-    <label>Email:</label>
-    <input type="email" name="email" required><br><br>
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" required>
+    </div>
 
-    <label>Password:</label>
-    <input type="password" name="password" required><br><br>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" required>
+    </div>
 
-    <label>Address:</label>
-    <input type="text" name="address" required><br><br>
+    <div class="mb-3">
+        <label class="form-label">Address</label>
+        <input type="text" name="address" class="form-control" required>
+    </div>
 
-    <label>Contact:</label>
-    <input type="text" name="contact" required><br><br>
+    <div class="mb-3">
+        <label class="form-label">Contact</label>
+        <input type="text" name="contact" class="form-control" required>
+    </div>
 
-    <label>Role:</label>
-    <select name="role">
-        <option value="customer">Customer</option>
-        <option value="admin">Admin</option>
-    </select><br><br>
-
-    <button type="submit">Register</button>
+    <button class="btn btn-success w-100">Register</button>
 </form>
 
 <%- include('partials/footer') %>

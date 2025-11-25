@@ -61,27 +61,30 @@ app.use((req, res, next) => {
 // ----------------------------
 const checkAuthenticated = (req, res, next) => {
     if (req.session.user) return next();
-    req.flash('error', 'Please log in first');
+    req.flash('error', 'Please log in first.');
     res.redirect('/login');
 };
 
-// Everyone who wants to SHOP must have 2FA enabled
+// Require 2FA before allowing shopping / admin
 const ensure2FA = (req, res, next) => {
     const user = req.session.user;
+
     if (!user) {
-        req.flash('error', 'Please log in first');
+        req.flash('error', 'Please log in first.');
         return res.redirect('/login');
     }
+
     if (!user.twofa_enabled) {
-        req.flash('error', 'You must enable 2FA before using this feature.');
+        req.flash('error', 'Please enable 2FA before continuing.');
         return res.redirect('/2fa/setup');
     }
+
     next();
 };
 
 const checkAdmin = (req, res, next) => {
     if (req.session.user && req.session.user.role === 'admin') return next();
-    req.flash('error', 'Access denied');
+    req.flash('error', 'Access denied.');
     res.redirect('/shop');
 };
 
@@ -107,25 +110,26 @@ app.get('/login', UserController.loginForm);
 app.post('/login', UserController.login);
 app.get('/logout', UserController.logout);
 
-// 2FA ROUTES
+// ----------------------------
+// 2FA ROUTES (Setup + Verify)
+// ----------------------------
 app.get('/2fa/setup', checkAuthenticated, UserController.show2FASetup);
 app.post('/2fa/setup', checkAuthenticated, UserController.verify2FASetup);
-app.get('/2fa/verify', UserController.show2FAVerify);      // from login step
+
+app.get('/2fa/verify', UserController.show2FAVerify);
 app.post('/2fa/verify', UserController.verify2FAVerify);
 
 // ----------------------------
-// Product listing (public browse OK)
+// Product listing (public)
 // ----------------------------
 app.get('/shop', ProductController.list);
-app.get('/shopping', ProductController.list); // backup alias
+app.get('/shopping', ProductController.list);
 
-// Admin inventory (must be logged in + 2FA + admin)
+// ----------------------------
+// Admin inventory + CRUD
+// ----------------------------
 app.get('/inventory', checkAuthenticated, ensure2FA, checkAdmin, ProductController.list);
 
-// Product details (public)
-app.get('/product/:id', ProductController.getById);
-
-// Admin product CRUD
 app.get('/addproduct', checkAuthenticated, ensure2FA, checkAdmin, (req, res) => {
     res.render('addProduct', { user: req.session.user });
 });
@@ -147,10 +151,7 @@ app.get(
     (req, res) => {
         const id = req.params.id;
         Product.getById(id, (err, product) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).send('Error retrieving product');
-            }
+            if (err) return res.status(500).send('Error retrieving product');
             if (!product) return res.status(404).send('Product not found');
             res.render('updateProduct', { product, user: req.session.user });
         });
@@ -184,21 +185,21 @@ app.post(
 );
 
 // ----------------------------
-// Cart (must be logged in + 2FA)
+// Cart
 // ----------------------------
 app.post('/add-to-cart/:id', checkAuthenticated, ensure2FA, CartController.add);
 app.get('/cart', checkAuthenticated, ensure2FA, CartController.view);
 app.post('/cart/delete/:id', checkAuthenticated, ensure2FA, CartController.delete);
 
 // ----------------------------
-// Checkout (must be logged in + 2FA)
+// Checkout
 // ----------------------------
 app.get('/checkout', checkAuthenticated, ensure2FA, CartController.checkoutPage);
 app.post('/checkout/confirm', checkAuthenticated, ensure2FA, CartController.confirmOrder);
 app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.successPage);
 
 // ----------------------------
-// Orders (history) + Invoice (must be logged in + 2FA)
+// Orders + Invoice
 // ----------------------------
 app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
 app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);

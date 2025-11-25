@@ -2,12 +2,16 @@
 const db = require('../db');
 
 const User = {
+
+    // --------------------------------------------------
     // Create new user
+    // --------------------------------------------------
     create: (user, callback) => {
         const sql = `
-            INSERT INTO users (username, email, password, address, contact, role)
-            VALUES (?, ?, SHA1(?), ?, ?, ?)
+            INSERT INTO users (username, email, password, address, contact, role, twofa_enabled, twofa_secret)
+            VALUES (?, ?, SHA1(?), ?, ?, ?, 0, NULL)
         `;
+
         db.query(
             sql,
             [
@@ -22,36 +26,45 @@ const User = {
         );
     },
 
-    // Verify email + password (used at login)
+    // --------------------------------------------------
+    // Verify email + password (Step 1 login)
+    // --------------------------------------------------
     verify: (email, password, callback) => {
         const sql = `
-            SELECT * 
-            FROM users 
+            SELECT *
+            FROM users
             WHERE email = ? AND password = SHA1(?)
         `;
+
         db.query(sql, [email, password], (err, results) => {
             if (err) return callback(err);
-            callback(null, results && results[0] ? results[0] : null);
+            return callback(null, results?.[0] || null);
         });
     },
 
-    // Enable 2FA for user (save secret + flag)
+    // --------------------------------------------------
+    // Enable 2FA (save secret into DB)
+    // --------------------------------------------------
     enableTwoFA: (userId, secret, callback) => {
         const sql = `
             UPDATE users
             SET twofa_secret = ?, twofa_enabled = 1
             WHERE id = ?
         `;
+
         db.query(sql, [secret, userId], callback);
     },
 
-    // (Optional) Disable 2FA
+    // --------------------------------------------------
+    // OPTIONAL: Disable 2FA
+    // --------------------------------------------------
     disableTwoFA: (userId, callback) => {
         const sql = `
             UPDATE users
             SET twofa_secret = NULL, twofa_enabled = 0
             WHERE id = ?
         `;
+
         db.query(sql, [userId], callback);
     }
 };

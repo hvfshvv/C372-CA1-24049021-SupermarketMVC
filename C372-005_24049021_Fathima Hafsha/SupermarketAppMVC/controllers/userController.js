@@ -25,7 +25,7 @@ const UserController = {
     },
 
     // -------------------------
-    // Login (Step 1: password)
+    // Login (Step 1: Password)
     // -------------------------
     loginForm: (req, res) => {
         res.render("login", {
@@ -40,7 +40,7 @@ const UserController = {
         User.verify(email, password, (err, user) => {
             if (err) {
                 console.error("Login error:", err);
-                req.flash("error", "Login failed");
+                req.flash("error", "Login failed.");
                 return res.redirect("/login");
             }
 
@@ -49,19 +49,17 @@ const UserController = {
                 return res.redirect("/login");
             }
 
-            // If user ALREADY enabled 2FA → go to 2FA verify page
-            if (user.twofa_enabled) {
+            // If user has NOT set up 2FA, force them to setup
+            if (!user.twofa_enabled) {
                 req.session.tempUserFor2FA = user;
-                return res.redirect("/2fa/verify");
+                return res.redirect("/2fa/setup");
             }
 
-            // If user has NOT set up 2FA → force them to setup
-            req.session.user = user;
-            req.flash("info", "Please set up 2FA before continuing.");
-            return res.redirect("/2fa/setup");
+            // If 2FA enabled → send them to verification page
+            req.session.tempUserFor2FA = user;
+            return res.redirect("/2fa/verify");
         });
     },
-
 
     // -------------------------
     // Logout
@@ -71,7 +69,7 @@ const UserController = {
     },
 
     // -------------------------
-    // 2FA SETUP (for logged-in user with no 2FA yet)
+    // 2FA SETUP PAGE
     // -------------------------
     show2FASetup: (req, res) => {
         const user = req.session.user;
@@ -81,25 +79,25 @@ const UserController = {
             return res.redirect("/login");
         }
 
-        // If already enabled, no need to setup again
+        // If already enabled
         if (user.twofa_enabled) {
-            req.flash("success", "2FA is already enabled on your account.");
+            req.flash("success", "2FA already enabled.");
             return res.redirect("/shop");
         }
 
-        // Generate secret for Google Authenticator
+        // Create secret for Google Authenticator
         const secret = speakeasy.generateSecret({
             name: `SupermarketAppMVC (${user.email})`,
             length: 20
         });
 
-        // Store secret temporarily in session until user enters correct code
+        // Save secret temporarily in session
         req.session.temp2FASecret = secret.base32;
 
-        // Generate QR code (data URL)
+        // Generate QR code image (base64)
         qrcode.toDataURL(secret.otpauth_url, (err, qrImage) => {
             if (err) {
-                console.error("QR code generation error:", err);
+                console.error("QR generation error:", err);
                 req.flash("error", "Failed to generate QR code");
                 return res.redirect("/shop");
             }
@@ -111,6 +109,9 @@ const UserController = {
         });
     },
 
+    // -------------------------
+    // 2FA SETUP VERIFICATION
+    // -------------------------
     verify2FASetup: (req, res) => {
         const user = req.session.user;
         const secret = req.session.temp2FASecret;
@@ -122,7 +123,7 @@ const UserController = {
         }
 
         if (!secret) {
-            req.flash("error", "2FA setup session expired. Please try again.");
+            req.flash("error", "2FA setup expired. Try again.");
             return res.redirect("/2fa/setup");
         }
 
@@ -134,31 +135,32 @@ const UserController = {
         });
 
         if (!verified) {
-            req.flash("error", "Invalid 2FA code. Please try again.");
+            req.flash("error", "Invalid 2FA code. Try again.");
             return res.redirect("/2fa/setup");
         }
 
-        // Save secret to DB + mark enabled
+        // Save 2FA secret in database
         User.enableTwoFA(user.id, secret, (err) => {
             if (err) {
                 console.error("enableTwoFA error:", err);
-                req.flash("error", "Failed to enable 2FA. Please try again.");
+                req.flash("error", "Failed to enable 2FA");
                 return res.redirect("/2fa/setup");
             }
 
-            // Update session user object
+            // Mark user as 2FA-enabled in session
             user.twofa_enabled = 1;
             user.twofa_secret = secret;
+
             req.session.user = user;
             delete req.session.temp2FASecret;
 
-            req.flash("success", "2FA has been enabled on your account!");
+            req.flash("success", "2FA enabled successfully!");
             return res.redirect("/shop");
         });
     },
 
     // -------------------------
-    // 2FA LOGIN VERIFY (Step 2 after password)
+    // 2FA LOGIN VERIFY PAGE
     // -------------------------
     show2FAVerify: (req, res) => {
         const tempUser = req.session.tempUserFor2FA;
@@ -171,6 +173,9 @@ const UserController = {
         res.render("twofa-verify");
     },
 
+    // -------------------------
+    // 2FA LOGIN VERIFY ACTION
+    // -------------------------
     verify2FAVerify: (req, res) => {
         const tempUser = req.session.tempUserFor2FA;
         const token = req.body.token;
@@ -188,11 +193,11 @@ const UserController = {
         });
 
         if (!verified) {
-            req.flash("error", "Invalid 2FA code. Please try again.");
+            req.flash("error", "Invalid 2FA code. Try again.");
             return res.redirect("/2fa/verify");
         }
 
-        // 2FA success → fully log in user
+        // 2FA success → full login
         req.session.user = tempUser;
         delete req.session.tempUserFor2FA;
 
