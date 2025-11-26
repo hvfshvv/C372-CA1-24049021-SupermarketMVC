@@ -1,61 +1,84 @@
 <%- include("partials/header"); %>
 
-    <h2 class="mb-4 fw-bold">Your Cart</h2>
+<h2 class="fw-bold mb-4">Your Cart</h2>
 
-    <% if (cart.length===0) { %>
-        <div class="alert alert-info text-center">
-            Your cart is empty!
-            <br><br>
-            <a href="/shopping" class="btn btn-primary">Continue Shopping</a>
+<!-- Show flash messages -->
+<% if (messages.error) { %>
+    <div class="alert alert-danger"><%= messages.error %></div>
+<% } %>
+
+<% if (messages.success) { %>
+    <div class="alert alert-success"><%= messages.success %></div>
+<% } %>
+
+<% if (cart.length === 0) { %>
+
+    <div class="alert alert-info text-center">
+        Your cart is empty!
+        <br><br>
+        <a href="/shopping" class="btn btn-primary">Continue Shopping</a>
+    </div>
+
+<% } else { %>
+
+<div class="row">
+    <% cart.forEach(item => { %>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+
+                <!-- Product image -->
+                <img src="/images/<%= item.image %>" class="card-img-top"
+                    style="height: 200px; object-fit: cover;">
+
+                <div class="card-body">
+                    <h5 class="card-title fw-bold">
+                        <%= item.productName %>
+                    </h5>
+
+                    <!-- ⭐ UPDATE QUANTITY FORM -->
+                    <form action="/cart/update/<%= item.id %>" method="POST" class="d-flex mb-3">
+                        <input 
+                            type="number" 
+                            name="quantity" 
+                            min="1" 
+                            value="<%= item.quantity %>" 
+                            class="form-control me-2"
+                        >
+                        <button class="btn btn-warning fw-bold">Update</button>
+                    </form>
+
+                    <p class="card-text mb-2">
+                        <strong>Price:</strong> $<%= item.price.toFixed(2) %><br>
+                        <strong>Line Total:</strong> 
+                        $<%= (item.price * item.quantity).toFixed(2) %>
+                    </p>
+
+                    <!-- Remove item -->
+                    <form action="/cart/delete/<%= item.id %>" method="POST">
+                        <button class="btn btn-danger w-100">Remove</button>
+                    </form>
+                </div>
+
+            </div>
         </div>
-        <% } else { %>
+    <% }) %>
+</div>
 
-            <div class="row">
-                <% cart.forEach(item=> { %>
-                    <div class="col-md-4 mb-4">
-                        <div class="card shadow-sm h-100">
+<!-- Buttons -->
+<div class="d-flex justify-content-between mt-4">
 
-                            <!-- Product image -->
-                            <img src="/images/<%= item.image %>" class="card-img-top"
-                                style="height: 200px; object-fit: cover;">
+    <!-- Continue Shopping -->
+    <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
+        Continue Shopping
+    </a>
 
-                            <div class="card-body">
-                                <h5 class="card-title fw-bold">
-                                    <%= item.productName %>
-                                </h5>
+    <!-- Proceed to Checkout -->
+    <a href="/checkout" class="btn btn-success btn-lg fw-bold">
+        Proceed to Checkout
+    </a>
 
-                                <p class="card-text">
-                                    <strong>Quantity:</strong>
-                                    <%= item.quantity %><br>
-                                        <strong>Price:</strong> $<%= item.price.toFixed(2) %><br>
-                                            <strong>Line Total:</strong> $<%= (item.price * item.quantity).toFixed(2) %>
-                                </p>
+</div>
 
-                                <form action="/cart/delete/<%= item.id %>" method="POST">
-                                    <button class="btn btn-danger w-100">Remove</button>
-                                </form>
-                            </div>
+<% } %>
 
-                        </div>
-                    </div>
-                    <% }); %>
-            </div>
-
-            <div class="d-flex justify-content-between mt-4">
-
-                <!-- Continue Shopping -->
-                <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
-                    Continue Shopping
-                </a>
-
-                <!-- Proceed to Checkout -->
-                <a href="/checkout" class="btn btn-success btn-lg fw-bold">
-                    Proceed to Checkout
-                </a>
-
-            </div>
-
-
-            <% } %>
-
-                <%- include("partials/footer"); %>
+<%- include("partials/footer"); %>

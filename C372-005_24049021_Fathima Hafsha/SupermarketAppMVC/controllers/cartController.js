@@ -47,6 +47,36 @@ const CartController = {
         req.session.cart = (req.session.cart || []).filter(item => item.id != id);
         res.redirect("/cart");
     },
+updateQuantity: (req, res) => {
+    const id = req.params.id;
+    let qty = parseInt(req.body.quantity);
+
+    if (!qty || qty < 1) qty = 1;
+
+    Product.getById(id, (err, product) => {
+        if (err || !product) {
+            req.flash("error", "Product not found");
+            return res.redirect("/cart");
+        }
+
+        if (!req.session.cart) req.session.cart = [];
+        const item = req.session.cart.find(i => i.id == id);
+
+        if (!item) {
+            req.flash("error", "Item no longer in cart");
+            return res.redirect("/cart");
+        }
+
+        if (qty > product.quantity) {
+            req.flash("error", `Only ${product.quantity} left in stock`);
+            return res.redirect("/cart");
+        }
+
+        item.quantity = qty;
+        req.flash("success", "Cart updated!");
+        res.redirect("/cart");
+    });
+},
 
     checkoutPage: (req, res) => {
         const cart = req.session.cart || [];

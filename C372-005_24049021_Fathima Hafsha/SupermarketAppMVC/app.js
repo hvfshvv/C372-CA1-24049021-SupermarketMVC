@@ -187,9 +187,11 @@ app.post(
 // ----------------------------
 // Cart
 // ----------------------------
+// Cart
 app.post('/add-to-cart/:id', checkAuthenticated, ensure2FA, CartController.add);
 app.get('/cart', checkAuthenticated, ensure2FA, CartController.view);
 app.post('/cart/delete/:id', checkAuthenticated, ensure2FA, CartController.delete);
+app.post('/cart/update/:id', checkAuthenticated, ensure2FA, CartController.updateQuantity);
 
 // ----------------------------
 // Checkout
