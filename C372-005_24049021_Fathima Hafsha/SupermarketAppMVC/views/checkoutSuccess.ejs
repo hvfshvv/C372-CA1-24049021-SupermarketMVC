@@ -1,20 +1,61 @@
 <%- include("partials/header"); %>
 
-<div class="text-center mt-5 mb-5">
-    <h2 class="fw-bold mb-3">Payment Successful!</h2>
+<div class="container mt-5 mb-5">
 
-    <% if (orderId) { %>
-        <p>Your order has been placed successfully. Thank you for your purchase 🎉</p>
-        <p>Your Order ID is <strong>#<%= orderId %></strong>.</p>
-        <a href="/invoice/<%= orderId %>" class="btn btn-primary">Download Receipt</a>
-    
-        <br>
-        <% } else { %>
-            <p>Your order has been placed.</p>
-            <% } %>
+    <h2 class="fw-bold text-center mb-4">Payment Successful 🎉</h2>
 
-    <a href="/orders" class="btn btn-outline-secondary mt-2">View My Orders</a>
-    <a href="/shop" class="btn btn-success mt-2 ms-2">Continue Shopping</a>
+    <% if (order) { %>
+        <p class="text-center">
+            Your order has been placed successfully.<br>
+            Order ID: <strong>#<%= order.id %></strong><br>
+            Date: <%= new Date(order.order_date).toLocaleString() %>
+        </p>
+
+        <h4 class="mt-4">Order Summary</h4>
+
+        <table class="table table-bordered mt-3">
+            <thead class="table-dark">
+                <tr>
+                    <th>Product</th>
+                    <th>Price ($)</th>
+                    <th>Qty</th>
+                    <th>Line Total ($)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% items.forEach(i => { %>
+                    <tr>
+                        <td><%= i.product_name %></td>
+                        <td><%= Number(i.price).toFixed(2) %></td>
+                        <td><%= i.quantity %></td>
+                        <td><%= (i.price * i.quantity).toFixed(2) %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+
+        <h4 class="text-end fw-bold">
+            Grand Total: $<%= Number(order.total_amount).toFixed(2) %>
+        </h4>
+
+        <div class="text-center mt-4">
+            <a href="/invoice/<%= order.id %>" class="btn btn-primary">
+                Download Invoice PDF
+            </a>
+
+            <a href="/orders" class="btn btn-outline-secondary ms-2">
+                View My Orders
+            </a>
+
+            <a href="/shop" class="btn btn-success ms-2">
+                Continue Shopping
+            </a>
+        </div>
+
+    <% } else { %>
+        <p class="text-center">Your order has been placed.</p>
+    <% } %>
+
 </div>
 
 <%- include("partials/footer"); %>

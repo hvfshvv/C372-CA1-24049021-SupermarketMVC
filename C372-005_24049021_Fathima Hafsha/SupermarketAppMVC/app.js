@@ -18,6 +18,7 @@ const UserController = require('./controllers/userController');
 const InvoiceController = require('./controllers/invoiceController');
 const OrderController = require('./controllers/orderController');
 const Product = require('./models/Product');
+const Cart = require('./models/Cart');   // 👈 NEW: for navbar cartCount
 
 // ----------------------------
 // Multer (file upload)
@@ -49,11 +50,26 @@ app.use(session({
 }));
 app.use(flash());
 
+// Make user + flash + cartCount available to all views
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     res.locals.messages = req.flash();
-    res.locals.cartCount = (req.session.cart || []).length;
-    next();
+
+    const user = req.session.user;
+    if (!user) {
+        res.locals.cartCount = 0;
+        return next();
+    }
+
+    Cart.getCart(user.id, (err, items) => {
+        if (err) {
+            console.error("Navbar Cart.getCart error:", err);
+            res.locals.cartCount = 0;
+        } else {
+            res.locals.cartCount = items.length || 0;
+        }
+        next();
+    });
 });
 
 // ----------------------------
@@ -185,9 +201,8 @@ app.post(
 );
 
 // ----------------------------
-// Cart
+// CART (DB-based)
 // ----------------------------
-// Cart
 app.post('/add-to-cart/:id', checkAuthenticated, ensure2FA, CartController.add);
 app.get('/cart', checkAuthenticated, ensure2FA, CartController.view);
 app.post('/cart/delete/:id', checkAuthenticated, ensure2FA, CartController.delete);

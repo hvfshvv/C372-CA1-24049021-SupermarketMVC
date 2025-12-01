@@ -2,7 +2,7 @@
 
 <h2 class="fw-bold mb-4">Your Cart</h2>
 
-<!-- Show flash messages -->
+<!-- Flash Messages -->
 <% if (messages.error) { %>
     <div class="alert alert-danger"><%= messages.error %></div>
 <% } %>
@@ -11,7 +11,7 @@
     <div class="alert alert-success"><%= messages.success %></div>
 <% } %>
 
-<% if (cart.length === 0) { %>
+<% if (!cart || cart.length === 0) { %>
 
     <div class="alert alert-info text-center">
         Your cart is empty!
@@ -21,63 +21,70 @@
 
 <% } else { %>
 
-<div class="row">
-    <% cart.forEach(item => { %>
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100">
+    <% let total = 0; %>
 
-                <!-- Product image -->
-                <img src="/images/<%= item.image %>" class="card-img-top"
-                    style="height: 200px; object-fit: cover;">
+    <div class="row">
+        <% cart.forEach(item => { 
+            const lineTotal = Number(item.price) * item.quantity;
+            total += lineTotal;
+        %>
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm h-100">
 
-                <div class="card-body">
-                    <h5 class="card-title fw-bold">
-                        <%= item.productName %>
-                    </h5>
+                    <img src="/images/<%= item.image %>" 
+                         class="card-img-top"
+                         style="height: 200px; object-fit: cover;">
 
-                    <!-- ⭐ UPDATE QUANTITY FORM -->
-                    <form action="/cart/update/<%= item.id %>" method="POST" class="d-flex mb-3">
-                        <input 
-                            type="number" 
-                            name="quantity" 
-                            min="1" 
-                            value="<%= item.quantity %>" 
-                            class="form-control me-2"
-                        >
-                        <button class="btn btn-warning fw-bold">Update</button>
-                    </form>
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold">
+                            <%= item.productName %>
+                        </h5>
 
-                    <p class="card-text mb-2">
-                        <strong>Price:</strong> $<%= item.price.toFixed(2) %><br>
-                        <strong>Line Total:</strong> 
-                        $<%= (item.price * item.quantity).toFixed(2) %>
-                    </p>
+                        <!-- UPDATE QUANTITY -->
+                        <form action="/cart/update/<%= item.cart_id %>" method="POST" class="d-flex mb-3">
+                            <input 
+                                type="number"
+                                name="quantity"
+                                min="1"
+                                value="<%= item.quantity %>"
+                                class="form-control me-2"
+                            >
+                            <button class="btn btn-warning fw-bold">Update</button>
+                        </form>
 
-                    <!-- Remove item -->
-                    <form action="/cart/delete/<%= item.id %>" method="POST">
-                        <button class="btn btn-danger w-100">Remove</button>
-                    </form>
+                        <p class="card-text mb-2">
+                            <strong>Price:</strong> $<%= Number(item.price).toFixed(2) %><br>
+                            <strong>Line Total:</strong> $<%= lineTotal.toFixed(2) %>
+                        </p>
+
+                        <!-- REMOVE ITEM -->
+                        <form action="/cart/delete/<%= item.cart_id %>" method="POST">
+                            <button class="btn btn-danger w-100">Remove</button>
+                        </form>
+                    </div>
+
                 </div>
-
             </div>
+        <% }) %>
+    </div>
+
+    <div class="d-flex justify-content-between mt-4">
+
+        <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
+            Continue Shopping
+        </a>
+
+        <div class="text-end">
+            <h4 class="fw-bold mb-3">
+                Total: $<%= total.toFixed(2) %>
+            </h4>
+
+            <a href="/checkout" class="btn btn-success btn-lg fw-bold">
+                Proceed to Checkout
+            </a>
         </div>
-    <% }) %>
-</div>
 
-<!-- Buttons -->
-<div class="d-flex justify-content-between mt-4">
-
-    <!-- Continue Shopping -->
-    <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
-        Continue Shopping
-    </a>
-
-    <!-- Proceed to Checkout -->
-    <a href="/checkout" class="btn btn-success btn-lg fw-bold">
-        Proceed to Checkout
-    </a>
-
-</div>
+    </div>
 
 <% } %>
 

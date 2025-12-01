@@ -13,12 +13,24 @@ const UserController = {
     },
 
     register: (req, res) => {
-        User.create(req.body, (err) => {
+
+        // Force role to "user" (security)
+        const newUser = {
+            username: req.body.username,
+            email: req.body.email,
+            password: req.body.password,
+            address: req.body.address,
+            contact: req.body.contact,
+            role: "user"   // << SECURITY FIX
+        };
+
+        User.create(newUser, (err) => {
             if (err) {
                 console.error("Register error:", err);
                 req.flash("error", "Registration failed");
                 return res.redirect("/register");
             }
+
             req.flash("success", "Registration successful! Please log in.");
             res.redirect("/login");
         });
@@ -49,13 +61,14 @@ const UserController = {
                 return res.redirect("/login");
             }
 
-            // If user has NOT set up 2FA, force them to setup
+            // --- 2FA NOT SET UP YET ---
             if (!user.twofa_enabled) {
                 req.session.tempUserFor2FA = user;
+                req.session.user = user;      // << IMPORTANT FIX
                 return res.redirect("/2fa/setup");
             }
 
-            // If 2FA enabled → send them to verification page
+            // --- 2FA ALREADY SETUP: login Step 2 ---
             req.session.tempUserFor2FA = user;
             return res.redirect("/2fa/verify");
         });
@@ -79,7 +92,6 @@ const UserController = {
             return res.redirect("/login");
         }
 
-        // If already enabled
         if (user.twofa_enabled) {
             req.flash("success", "2FA already enabled.");
             return res.redirect("/shop");
@@ -91,10 +103,8 @@ const UserController = {
             length: 20
         });
 
-        // Save secret temporarily in session
         req.session.temp2FASecret = secret.base32;
 
-        // Generate QR code image (base64)
         qrcode.toDataURL(secret.otpauth_url, (err, qrImage) => {
             if (err) {
                 console.error("QR generation error:", err);
@@ -139,7 +149,6 @@ const UserController = {
             return res.redirect("/2fa/setup");
         }
 
-        // Save 2FA secret in database
         User.enableTwoFA(user.id, secret, (err) => {
             if (err) {
                 console.error("enableTwoFA error:", err);
@@ -147,11 +156,10 @@ const UserController = {
                 return res.redirect("/2fa/setup");
             }
 
-            // Mark user as 2FA-enabled in session
             user.twofa_enabled = 1;
             user.twofa_secret = secret;
-
             req.session.user = user;
+
             delete req.session.temp2FASecret;
 
             req.flash("success", "2FA enabled successfully!");
@@ -174,7 +182,7 @@ const UserController = {
     },
 
     // -------------------------
-    // 2FA LOGIN VERIFY ACTION
+    // 2FA LOGIN ACTION
     // -------------------------
     verify2FAVerify: (req, res) => {
         const tempUser = req.session.tempUserFor2FA;
@@ -197,7 +205,7 @@ const UserController = {
             return res.redirect("/2fa/verify");
         }
 
-        // 2FA success → full login
+        // FULL LOGIN SUCCESS
         req.session.user = tempUser;
         delete req.session.tempUserFor2FA;
 

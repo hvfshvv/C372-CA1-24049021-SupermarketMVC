@@ -1,6 +1,7 @@
 const db = require("../db");
 
 const Order = {
+
     create(userId, totalAmount, callback) {
         const sql = `
             INSERT INTO orders (user_id, total_amount)
@@ -12,15 +13,13 @@ const Order = {
         });
     },
 
-    // Insert order items
-    addItem: (orderId, productId, name, price, qty, callback) => {
+    addItem(orderId, productId, name, price, qty, callback) {
         const sql = `
-        INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
-        VALUES (?, ?, ?, ?, ?)
-    `;
+            INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
+            VALUES (?, ?, ?, ?, ?)
+        `;
         db.query(sql, [orderId, productId, name, price, qty], callback);
     },
-
 
     getById(orderId, callback) {
         db.query(`SELECT * FROM orders WHERE id = ?`, [orderId], (err, results) => {
@@ -43,6 +42,24 @@ const Order = {
             [orderId],
             callback
         );
+    },
+
+    // ⭐ NEW FUNCTION: Fetch both order + items
+    getOrderWithItems(orderId, callback) {
+        const orderSql = `SELECT * FROM orders WHERE id = ?`;
+        const itemsSql = `SELECT * FROM order_items WHERE order_id = ?`;
+
+        db.query(orderSql, [orderId], (err, orderResults) => {
+            if (err) return callback(err);
+
+            const order = orderResults[0];
+            if (!order) return callback(null, null, []);
+
+            db.query(itemsSql, [orderId], (err, itemResults) => {
+                if (err) return callback(err);
+                callback(null, order, itemResults);
+            });
+        });
     }
 };
 
