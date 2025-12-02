@@ -2,16 +2,9 @@
 
 <h2 class="fw-bold mb-4">Your Cart</h2>
 
-<!-- Flash Messages -->
-<% if (messages.error) { %>
-    <div class="alert alert-danger"><%= messages.error %></div>
-<% } %>
+<!-- Flash Messages (handled globally through header) -->
 
-<% if (messages.success) { %>
-    <div class="alert alert-success"><%= messages.success %></div>
-<% } %>
-
-<% if (!cart || cart.length === 0) { %>
+<% if (cart.length === 0) { %>
 
     <div class="alert alert-info text-center">
         Your cart is empty!
@@ -20,6 +13,7 @@
     </div>
 
 <% } else { %>
+
 
     <% let total = 0; %>
 

@@ -118,3 +118,19 @@ tr.table-danger td.action-buttons {
 .btn-add:hover {
     background: #0f5f39;
 }
+
+/* Checkout Spinner Styling */
+#checkoutSpinner {
+    text-align: center;
+}
+
+#checkoutSpinner .spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Disabled payment button style */
+#confirmBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

@@ -1,75 +1,103 @@
 <%- include("partials/header"); %>
 
-<!-- SAFE PATCH -->
-<% const searchValue = typeof locals.search !== "undefined" ? locals.search : ""; %>
-<% const categoryValue = typeof locals.category !== "undefined" ? locals.category : ""; %>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold mb-0">Shop</h2>
+    </div>
 
-<h2 class="fw-bold mb-4">Supermarket Products</h2>
-
-<form method="GET" action="/shop" class="d-flex align-items-center gap-3 mb-4">
-
-    <input 
-        type="text"
-        name="search"
-        class="form-control"
-        placeholder="Search products..."
-        style="max-width: 300px;"
-        value="<%= searchValue %>"
-    >
-
-    <select 
-        name="category"
-        class="form-select"
-        style="max-width: 200px;"
-    >
-        <option value="">All Categories</option>
-        <option value="Fruits"     <%= categoryValue === "Fruits" ? "selected" : "" %>>Fruits</option>
-        <option value="Vegetables" <%= categoryValue === "Vegetables" ? "selected" : "" %>>Vegetables</option>
-        <option value="Dairy"      <%= categoryValue === "Dairy" ? "selected" : "" %>>Dairy</option>
-        <option value="Bakery"     <%= categoryValue === "Bakery" ? "selected" : "" %>>Bakery</option>
-        <option value="Beverages"  <%= categoryValue === "Beverages" ? "selected" : "" %>>Beverages</option>
-        <option value="Snacks"     <%= categoryValue === "Snacks" ? "selected" : "" %>>Snacks</option>
-        <option value="Other"      <%= categoryValue === "Other" ? "selected" : "" %>>Other</option>
-    </select>
-
-    <button class="btn btn-primary">Apply</button>
-</form>
-
-<div class="product-container">
-
-    <% products.forEach(p => { %>
-
-        <div class="product-card">
-
-            <img src="/images/<%= p.image %>" alt="Product Image">
-
-            <h5 class="fw-bold mt-2 mb-1"><%= p.productName %></h5>
-
-            <p class="small text-secondary mb-1">
-                <strong>Category:</strong> <%= p.category %>
-            </p>
-
-            <p class="text-muted mb-2">
-                <strong>Price:</strong> $<%= p.price.toFixed(2) %><br>
-                    <strong>Stock:</strong>
-                    <% if (p.lowStock) { %>
-                        <span class="text-danger">Low Stock! (<%= p.quantity %> left)</span>
-                        <% } else { %>
-                            <%= p.quantity %>
-                                <% } %>
-            
-            </p>
-
-            <a href="/product/<%= p.id %>" class="btn btn-view w-100 mb-2">View Details</a>
-
-            <form action="/add-to-cart/<%= p.id %>" method="POST">
-                <button class="btn btn-add w-100">Add to Cart</button>
-            </form>
-
+    <!-- Search + Category Filter -->
+    <form class="row g-2 mb-4" method="GET" action="/shop">
+        <div class="col-md-6">
+            <input type="text" name="search" class="form-control" placeholder="Search products..."
+                value="<%= typeof search !== 'undefined' ? search : '' %>">
         </div>
 
-    <% }) %>
+        <div class="col-md-3">
+            <select name="category" class="form-select">
+                <option value="">All Categories</option>
+                <option value="Fruits">Fruits</option>
+                <option value="Vegetables">Vegetables</option>
+                <option value="Drinks">Drinks</option>
+                <option value="Snacks">Snacks</option>
+                <option value="Household">Household</option>
+                <!-- Add more if you have -->
+            </select>
+        </div>
 
-</div>
+        <div class="col-md-3">
+            <button class="btn btn-primary w-100">
+                <i class="bi bi-search me-1"></i> Filter
+            </button>
+        </div>
+    </form>
 
-<%- include("partials/footer"); %>
+    <% if (!products || products.length===0) { %>
+
+        <div class="alert alert-info">
+            No products found. Try a different search or category.
+        </div>
+
+        <% } else { %>
+
+            <div class="row">
+                <% products.forEach(p=> { %>
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100 shadow-sm">
+
+                            <img src="/images/<%= p.image %>" class="card-img-top"
+                                style="height: 200px; object-fit: cover;">
+
+                            <div class="card-body d-flex flex-column">
+
+                                <h5 class="card-title fw-bold">
+                                    <%= p.productName %>
+                                </h5>
+                                <p class="text-muted mb-1">
+                                    <%= p.category %>
+                                </p>
+
+                                <% if (p.quantity===0) { %>
+                                    <span class="badge bg-danger mb-2">Out of Stock</span>
+                                    <% } else if (p.quantity <=5) { %>
+                                        <span class="badge bg-warning text-dark mb-2">
+                                            Low Stock: <%= p.quantity %> left
+                                        </span>
+                                        <% } else { %>
+                                            <span class="badge bg-success mb-2">
+                                                In Stock: <%= p.quantity %>
+                                            </span>
+                                            <% } %>
+
+                                                <p class="fw-bold mb-3">$<%= Number(p.price).toFixed(2) %>
+                                                </p>
+
+                                                <div class="mt-auto">
+                                                    <% if (p.quantity===0) { %>
+                                                        <button class="btn btn-secondary w-100" disabled>
+                                                            Out of Stock
+                                                        </button>
+                                                        <% } else { %>
+                                                            <form action="/add-to-cart/<%= p.id %>" method="POST"
+                                                                class="d-flex mb-2">
+                                                                <input type="number" name="quantity" min="1" value="1"
+                                                                    class="form-control me-2">
+                                                                <button class="btn btn-success">
+                                                                    <i class="bi bi-cart-plus me-1"></i> Add to Cart
+                                                                </button>
+                                                            </form>
+                                                            <% } %>
+
+                                                                <a href="/product/<%= p.id %>"
+                                                                    class="btn btn-outline-primary w-100">
+                                                                    View Details
+                                                                </a>
+                                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <% }); %>
+            </div>
+
+            <% } %>
+
+                <%- include("partials/footer"); %>

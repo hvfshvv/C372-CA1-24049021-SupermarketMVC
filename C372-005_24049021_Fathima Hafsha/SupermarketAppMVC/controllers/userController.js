@@ -14,14 +14,14 @@ const UserController = {
 
     register: (req, res) => {
 
-        // Force role to "user" (security)
+        // Force role to "user" for security
         const newUser = {
             username: req.body.username,
             email: req.body.email,
             password: req.body.password,
             address: req.body.address,
             contact: req.body.contact,
-            role: "user"   // << SECURITY FIX
+            role: "user"
         };
 
         User.create(newUser, (err) => {
@@ -61,14 +61,14 @@ const UserController = {
                 return res.redirect("/login");
             }
 
-            // --- 2FA NOT SET UP YET ---
+            // User has NOT setup 2FA yet
             if (!user.twofa_enabled) {
                 req.session.tempUserFor2FA = user;
-                req.session.user = user;      // << IMPORTANT FIX
+                req.session.user = user; // Needed so they can access /2fa/setup
                 return res.redirect("/2fa/setup");
             }
 
-            // --- 2FA ALREADY SETUP: login Step 2 ---
+            // User already has 2FA --> move to verification step
             req.session.tempUserFor2FA = user;
             return res.redirect("/2fa/verify");
         });
@@ -82,7 +82,7 @@ const UserController = {
     },
 
     // -------------------------
-    // 2FA SETUP PAGE
+    // 2FA Setup Page
     // -------------------------
     show2FASetup: (req, res) => {
         const user = req.session.user;
@@ -97,7 +97,6 @@ const UserController = {
             return res.redirect("/shop");
         }
 
-        // Create secret for Google Authenticator
         const secret = speakeasy.generateSecret({
             name: `SupermarketAppMVC (${user.email})`,
             length: 20
@@ -120,7 +119,7 @@ const UserController = {
     },
 
     // -------------------------
-    // 2FA SETUP VERIFICATION
+    // 2FA Setup Verification
     // -------------------------
     verify2FASetup: (req, res) => {
         const user = req.session.user;
@@ -168,7 +167,7 @@ const UserController = {
     },
 
     // -------------------------
-    // 2FA LOGIN VERIFY PAGE
+    // 2FA Verification Page
     // -------------------------
     show2FAVerify: (req, res) => {
         const tempUser = req.session.tempUserFor2FA;
@@ -182,7 +181,7 @@ const UserController = {
     },
 
     // -------------------------
-    // 2FA LOGIN ACTION
+    // 2FA Login Action
     // -------------------------
     verify2FAVerify: (req, res) => {
         const tempUser = req.session.tempUserFor2FA;
@@ -205,12 +204,68 @@ const UserController = {
             return res.redirect("/2fa/verify");
         }
 
-        // FULL LOGIN SUCCESS
+        // FINAL LOGIN SUCCESS
         req.session.user = tempUser;
         delete req.session.tempUserFor2FA;
 
         if (tempUser.role === "admin") return res.redirect("/inventory");
+
         return res.redirect("/shop");
+    },
+
+    // -------------------------
+    // PROFILE PAGE
+    // -------------------------
+    profile: (req, res) => {
+        const user = req.session.user;
+
+        if (!user) {
+            req.flash("error", "Please log in first");
+            return res.redirect("/login");
+        }
+
+        const isAdmin = user.role === "admin";
+
+        // If admin → do NOT load orders
+        if (isAdmin) {
+            return res.render("profile", {
+                user,
+                isAdmin,
+                stats: null   // admin does NOT need stats
+            });
+        }
+
+        // User → load order statistics
+        const Order = require("../models/Order");
+
+        Order.getByUser(user.id, (err, orders) => {
+            if (err) {
+                console.error("Order stats error:", err);
+                return res.render("profile", {
+                    user,
+                    isAdmin,
+                    stats: { totalOrders: 0, totalSpent: 0 }
+                });
+            }
+
+            const totalOrders = orders.length;
+            let totalSpent = 0;
+
+            orders.forEach(o => {
+                totalSpent += Number(o.total_amount);
+            });
+
+            const stats = {
+                totalOrders,
+                totalSpent
+            };
+
+            res.render("profile", {
+                user,
+                isAdmin,
+                stats
+            });
+        });
     }
 };
 

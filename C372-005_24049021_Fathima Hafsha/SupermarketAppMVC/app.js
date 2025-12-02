@@ -127,6 +127,29 @@ app.post('/login', UserController.login);
 app.get('/logout', UserController.logout);
 
 // ----------------------------
+// PROFILE ROUTE
+// ----------------------------
+app.get('/profile', checkAuthenticated, ensure2FA, UserController.profile);
+
+
+// ----------------------------
+// USER PROFILE
+// ----------------------------
+app.get('/profile', checkAuthenticated, ensure2FA, (req, res) => {
+    const userId = req.session.user.id;
+
+    OrderController.getStats(userId, (stats) => {
+        const user = { 
+            ...req.session.user,
+            orderCount: stats.orderCount,
+            totalSpent: stats.totalSpent
+        };
+
+        res.render("profile", { user });
+    });
+});
+
+// ----------------------------
 // 2FA ROUTES (Setup + Verify)
 // ----------------------------
 app.get('/2fa/setup', checkAuthenticated, UserController.show2FASetup);
@@ -218,7 +241,14 @@ app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.succe
 // ----------------------------
 // Orders + Invoice
 // ----------------------------
-app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
+app.get('/orders', checkAuthenticated, ensure2FA, (req, res, next) => {
+    if (req.session.user.role === "admin") {
+        req.flash("error", "Admins cannot view user orders.");
+        return res.redirect("/inventory");
+    }
+    next();
+}, OrderController.list);
+
 app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);
 
 // ----------------------------
