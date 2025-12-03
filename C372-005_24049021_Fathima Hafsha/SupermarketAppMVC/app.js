@@ -15,7 +15,7 @@ const app = express();
 const ProductController = require('./controllers/productController');
 const CartController = require('./controllers/cartController');
 const UserController = require('./controllers/userController');
-const InvoiceController = require('./controllers/invoiceController');
+const InvoiceController = require('./controllers/invoiceController.js');
 const OrderController = require('./controllers/orderController');
 const Product = require('./models/Product');
 const Cart = require('./models/Cart');   // 👈 NEW: for navbar cartCount
@@ -130,6 +130,8 @@ app.get('/logout', UserController.logout);
 // PROFILE ROUTE
 // ----------------------------
 app.get('/profile', checkAuthenticated, ensure2FA, UserController.profile);
+app.get('/profile/change-password', checkAuthenticated, ensure2FA, UserController.changePasswordForm);
+app.post('/profile/change-password', checkAuthenticated, ensure2FA, UserController.changePassword);
 
 
 // ----------------------------
@@ -163,6 +165,9 @@ app.post('/2fa/verify', UserController.verify2FAVerify);
 // ----------------------------
 app.get('/shop', ProductController.list);
 app.get('/shopping', ProductController.list);
+
+// Product details (public)
+app.get('/product/:id', ProductController.getById);
 
 // ----------------------------
 // Admin inventory + CRUD

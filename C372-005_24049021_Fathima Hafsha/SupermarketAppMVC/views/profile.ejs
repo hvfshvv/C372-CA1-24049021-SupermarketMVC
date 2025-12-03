@@ -1,69 +1,113 @@
 <%- include("partials/header"); %>
 
-    <div class="profile-header text-center text-white py-5"
-        style="background: linear-gradient(90deg,#4f73ff,#7f3dff);border-radius:10px;">
-        <h2 class="fw-bold">My Profile</h2>
-        <p>Welcome back, <%= user.username %> 👋</p>
-    </div>
+<!-- ==========================
+     PROFILE HEADER
+============================== -->
+<div class="profile-header text-center text-white py-5"
+    style="background: linear-gradient(90deg,#4f73ff,#7f3dff); border-radius: 10px;">
+    <h2 class="fw-bold">My Profile</h2>
+    <p>Welcome back, <%= user.username %>!</p>
+</div>
 
-    <div class="container my-5" style="max-width: 700px;">
-        <div class="card shadow-lg p-4">
+<!-- ==========================
+     PROFILE BODY
+============================== -->
+<div class="container my-5" style="max-width: 700px;">
+    <div class="card shadow-lg p-4">
 
-            <h4 class="fw-bold mb-3">Personal Information</h4>
+        <h4 class="fw-bold mb-3">Personal Information</h4>
 
-            <div class="mb-3">
-                <label class="form-label fw-semibold">Username</label>
-                <input type="text" class="form-control" value="<%= user.username %>" disabled>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold">Email</label>
-                <input type="text" class="form-control" value="<%= user.email %>" disabled>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold">Address</label>
-                <input type="text" class="form-control" value="<%= user.address %>" disabled>
-            </div>
-
-            <div class="mb-4">
-                <label class="form-label fw-semibold">Contact</label>
-                <input type="text" class="form-control" value="<%= user.contact %>" disabled>
-            </div>
-
-            <!-- ONLY USERS SEE ACTIVITY -->
-            <% if (!isAdmin) { %>
-                <h4 class="fw-bold mb-3">My Activity</h4>
-
-                <div class="d-flex gap-3 mb-4">
-
-                    <div class="card p-3 flex-fill text-center bg-light">
-                        <h3 class="fw-bold">
-                            <%= stats.totalOrders %>
-                        </h3>
-                        <p class="text-muted">Total Orders</p>
-                    </div>
-
-                    <div class="card p-3 flex-fill text-center bg-light">
-                        <h3 class="fw-bold">$<%= stats.totalSpent.toFixed(2) %>
-                        </h3>
-                        <p class="text-muted">Total Spent</p>
-                    </div>
-
-                </div>
-
-                <div class="d-flex justify-content-center gap-3">
-                    <a href="/orders" class="btn btn-primary">View My Orders</a>
-                    <a href="/shop" class="btn btn-secondary">Continue Shopping</a>
-                </div>
-                <% } %>
-
-                    <!-- CHANGE PASSWORD BUTTON (SHOW FOR EVERYONE) -->
-                    <div class="text-center mt-4">
-                        <a href="/profile/change-password" class="btn btn-warning">Change Password</a>
-                    </div>
-
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input type="text" class="form-control" value="<%= user.username %>" disabled>
         </div>
-    </div>
 
-    <%- include("partials/footer"); %>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="text" class="form-control" value="<%= user.email %>" disabled>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Address</label>
+            <input type="text" class="form-control" value="<%= user.address %>" disabled>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">Contact</label>
+            <input type="text" class="form-control" value="<%= user.contact %>" disabled>
+        </div>
+
+        <!-- ==========================
+             USER ACTIVITY (USERS ONLY)
+        =============================== -->
+        <% if (!isAdmin) { %>
+
+            <h4 class="fw-bold mb-3">My Activity</h4>
+
+            <div class="d-flex gap-3 mb-4">
+
+                <div class="card p-3 flex-fill text-center bg-light">
+                    <h3 class="fw-bold"><%= stats.totalOrders %></h3>
+                    <p class="text-muted">Total Orders</p>
+                </div>
+
+                <div class="card p-3 flex-fill text-center bg-light">
+                    <h3 class="fw-bold">$<%= stats.totalSpent.toFixed(2) %></h3>
+                    <p class="text-muted">Total Spent</p>
+                </div>
+
+            </div>
+
+            <div class="d-flex justify-content-center gap-3">
+                <a href="/orders" class="btn btn-primary">View My Orders</a>
+                <a href="/shop" class="btn btn-secondary">Continue Shopping</a>
+            </div>
+
+        <% } %>
+
+        <!-- ==========================
+             CHANGE PASSWORD BUTTON
+        =============================== -->
+        <div class="text-center mt-4">
+            <a href="/profile/change-password" class="btn btn-warning fw-bold">Change Password</a>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==========================
+     PASSWORD UPDATED POPUP
+============================== -->
+<script>
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("pwChanged") === "1") {
+        const popup = document.createElement("div");
+        popup.style.position = "fixed";
+        popup.style.top = "50%";
+        popup.style.left = "50%";
+        popup.style.transform = "translate(-50%, -50%)";
+        popup.style.background = "#1f1f1f";
+        popup.style.color = "white";
+        popup.style.padding = "35px";
+        popup.style.borderRadius = "15px";
+        popup.style.boxShadow = "0 4px 20px rgba(0,0,0,0.45)";
+        popup.style.textAlign = "center";
+        popup.style.zIndex = "99999";
+        popup.style.width = "300px";
+        
+        popup.innerHTML = `
+            <div style="font-size: 50px; color: #28a745; margin-bottom: 10px;">✔</div>
+            <p>Password updated successfully!</p>
+        `;
+
+        document.body.appendChild(popup);
+
+        setTimeout(() => {
+            popup.remove();
+            window.history.replaceState({}, document.title, "/profile");
+        }, 3000);
+    }
+</script>
+
+<%- include("partials/footer"); %>

@@ -1,5 +1,58 @@
+/* =====================================================
+   GLOBAL STYLING
+===================================================== */
 
-/* Make table images look neat */
+body {
+    background: #f5f7fb !important;
+    font-family: "Segoe UI", sans-serif;
+    color: #333;
+}
+
+/* Soft cards everywhere */
+.card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0px 4px 20px rgba(0,0,0,0.07);
+}
+
+/* Nice input fields */
+input, select, textarea {
+    border-radius: 8px !important;
+}
+
+/* =====================================================
+   NAVBAR — Gradient + Sticky
+===================================================== */
+
+.gradient-navbar {
+    background: linear-gradient(90deg, #1f2a5c, #3545d6, #6c4ad9) !important;
+}
+
+.navbar a.nav-link {
+    font-weight: 500;
+    color: rgba(255,255,255,0.85) !important;
+}
+
+.navbar a.nav-link:hover {
+    color: #fff !important;
+}
+
+.cart-badge {
+    background-color: #ffb020;
+    color: #111;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 50px;
+    position: absolute;
+    top: 0;
+    right: -8px;
+}
+
+/* =====================================================
+   TABLES & INVENTORY
+===================================================== */
+
+/* Product images in tables */
 table img {
     width: 60px;
     height: 60px;
@@ -7,24 +60,16 @@ table img {
     border-radius: 6px;
 }
 
-/* Ensure all table cells align nicely */
 table td {
     vertical-align: middle;
 }
 
-.btn-delete {
-    padding: 6px 12px;
-    font-size: 14px;
-    border-radius: 4px;
-    display: inline-block;
-    margin-left: 5px;
-}
-
+/* Action buttons */
+.btn-delete,
 .btn-edit {
     padding: 6px 12px;
     font-size: 14px;
-    border-radius: 4px;
-    display: inline-block;
+    border-radius: 6px;
 }
 
 .action-buttons {
@@ -33,20 +78,19 @@ table td {
     align-items: center;
 }
 
-/* ---------- FIX ACTIONS COLUMN BACKGROUND ---------- */
-
-/* Always keep Actions column clean, no stripe or red overlay */
+/* Ensure clean background for Actions column */
 td.action-buttons {
     background: #ffffff !important;
     border-bottom: 1px solid #eee;
 }
 
-/* Also reset hover or danger row effect only for the Actions cell */
 tr.table-danger td.action-buttons {
     background: #ffffff !important;
 }
 
-/* ---------- SHOP PAGE GRID  ---------- */
+/* =====================================================
+   SHOP PAGE — Product Grid
+===================================================== */
 
 .product-container {
     display: grid;
@@ -59,17 +103,17 @@ tr.table-danger td.action-buttons {
 .product-card {
     width: 100%;
     max-width: 220px;
-    background: #fff;
+    background: #ffffff;
     padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    border: 1px solid #eee;
+    border-radius: 14px;
     text-align: center;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
-    transition: transform 0.15s ease-in-out;
+    box-shadow: 0px 3px 10px rgba(0,0,0,0.08);
+    transition: 0.2s ease-in-out;
 }
 
 .product-card:hover {
-    transform: scale(1.03);
+    transform: scale(1.04);
 }
 
 .product-card img {
@@ -79,29 +123,118 @@ tr.table-danger td.action-buttons {
     margin-bottom: 12px;
 }
 
-/* ---------- SHOP BUTTONS FIX ---------- */
+/* Centered product grid */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 30px;
+    justify-items: center;
+    margin-top: 20px;
+}
 
-/* View Details Button */
+/* Clean card */
+.product-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 260px;
+    text-align: center;
+    transition: 0.25s ease-in-out;
+    border: 1px solid #e5e5e5;
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0px 6px 18px rgba(0,0,0,0.1);
+}
+
+/* Product image */
+.product-img {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+}
+
+/* Add Row */
+.add-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.qty-box {
+    width: 70px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+/* Add Button */
+.btn-add-cart {
+    flex: 1;
+    background: #198754;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.btn-add-cart:hover {
+    background: #0f5f39;
+}
+
+/* Out of stock button */
+.btn-out {
+    background: #999;
+    color: white;
+    border-radius: 8px;
+    padding: 8px;
+    font-weight: 600;
+}
+
+/* View details */
+.btn-view-details {
+    display: block;
+    width: 100%;
+    border-radius: 8px;
+    padding: 8px;
+    font-weight: 600;
+    border: 2px solid #0d6efd;
+    color: #0d6efd;
+    margin-top: 12px;
+    transition: 0.2s;
+}
+
+.btn-view-details:hover {
+    background: #eaf3ff;
+    color: #004aad;
+}
+
+/* =====================================================
+   SHOP BUTTONS
+===================================================== */
+
 .btn-view {
     display: block;
     width: 100%;
     padding: 8px 10px;
-    border: 2px solid #007bff;
+    border: 2px solid #0d6efd;
     background: white;
-    color: #007bff;
+    color: #0d6efd;
     font-weight: 600;
     border-radius: 6px;
-    transition: 0.2s ease-in-out;
-    text-align: center;
+    transition: 0.25s;
 }
 
 .btn-view:hover {
-    background: #e7f1ff;
-    border-color: #0056b3;
-    color: #0056b3;
+    background: #e8f1ff;
+    border-color: #0a58ca;
+    color: #0a58ca;
 }
 
-/* Add to Cart Button */
 .btn-add {
     display: block;
     width: 100%;
@@ -110,8 +243,7 @@ tr.table-danger td.action-buttons {
     color: white;
     font-weight: 700;
     border-radius: 6px;
-    transition: 0.2s ease-in-out;
-    text-align: center;
+    transition: 0.25s;
     border: none;
 }
 
@@ -119,7 +251,10 @@ tr.table-danger td.action-buttons {
     background: #0f5f39;
 }
 
-/* Checkout Spinner Styling */
+/* =====================================================
+   CHECKOUT / PAYMENT PAGE
+===================================================== */
+
 #checkoutSpinner {
     text-align: center;
 }
@@ -129,8 +264,43 @@ tr.table-danger td.action-buttons {
     height: 2rem;
 }
 
-/* Disabled payment button style */
 #confirmBtn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+/* =====================================================
+   PROFILE PAGE
+===================================================== */
+
+.profile-header {
+    border-radius: 14px;
+    box-shadow: 0px 3px 18px rgba(0,0,0,0.1);
+}
+
+.profile-stat {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0px 3px 15px rgba(0,0,0,0.08);
+}
+
+.profile-stat h3 {
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.profile-stat p {
+    margin-top: -8px;
+    color: #777;
+    font-size: 14px;
+}
+
+/* Modern gradient footer */
+.footer-gradient {
+    background: linear-gradient(90deg, #1f2a5c, #3545d6, #6c4ad9);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    box-shadow: 0px -3px 15px rgba(0,0,0,0.1);
 }

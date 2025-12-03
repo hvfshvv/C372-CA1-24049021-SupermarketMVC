@@ -51,12 +51,11 @@ const User = {
             SET twofa_secret = ?, twofa_enabled = 1
             WHERE id = ?
         `;
-
         db.query(sql, [secret, userId], callback);
     },
 
     // --------------------------------------------------
-    // OPTIONAL: Disable 2FA
+    // Disable 2FA
     // --------------------------------------------------
     disableTwoFA: (userId, callback) => {
         const sql = `
@@ -64,9 +63,21 @@ const User = {
             SET twofa_secret = NULL, twofa_enabled = 0
             WHERE id = ?
         `;
-
         db.query(sql, [userId], callback);
+    },
+
+    // --------------------------------------------------
+    // UPDATE PASSWORD  ✅ FIXED (now inside User object)
+    // --------------------------------------------------
+    updatePassword: (userId, newPassword, callback) => {
+        const sql = `
+            UPDATE users
+            SET password = SHA1(?)
+            WHERE id = ?
+        `;
+        db.query(sql, [newPassword, userId], callback);
     }
+
 };
 
 module.exports = User;

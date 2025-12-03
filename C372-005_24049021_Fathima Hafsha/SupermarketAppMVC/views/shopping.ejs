@@ -1,103 +1,95 @@
 <%- include("partials/header"); %>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="shop-header d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold mb-0">Shop</h2>
     </div>
 
     <!-- Search + Category Filter -->
-    <form class="row g-2 mb-4" method="GET" action="/shop">
-        <div class="col-md-6">
-            <input type="text" name="search" class="form-control" placeholder="Search products..."
-                value="<%= typeof search !== 'undefined' ? search : '' %>">
-        </div>
+    <div class="card shadow-sm p-4 mb-4">
+        <form class="row g-3" method="GET" action="/shop">
 
-        <div class="col-md-3">
-            <select name="category" class="form-select">
-                <option value="">All Categories</option>
-                <option value="Fruits">Fruits</option>
-                <option value="Vegetables">Vegetables</option>
-                <option value="Drinks">Drinks</option>
-                <option value="Snacks">Snacks</option>
-                <option value="Household">Household</option>
-                <!-- Add more if you have -->
-            </select>
-        </div>
-
-        <div class="col-md-3">
-            <button class="btn btn-primary w-100">
-                <i class="bi bi-search me-1"></i> Filter
-            </button>
-        </div>
-    </form>
-
-    <% if (!products || products.length===0) { %>
-
-        <div class="alert alert-info">
-            No products found. Try a different search or category.
-        </div>
-
-        <% } else { %>
-
-            <div class="row">
-                <% products.forEach(p=> { %>
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100 shadow-sm">
-
-                            <img src="/images/<%= p.image %>" class="card-img-top"
-                                style="height: 200px; object-fit: cover;">
-
-                            <div class="card-body d-flex flex-column">
-
-                                <h5 class="card-title fw-bold">
-                                    <%= p.productName %>
-                                </h5>
-                                <p class="text-muted mb-1">
-                                    <%= p.category %>
-                                </p>
-
-                                <% if (p.quantity===0) { %>
-                                    <span class="badge bg-danger mb-2">Out of Stock</span>
-                                    <% } else if (p.quantity <=5) { %>
-                                        <span class="badge bg-warning text-dark mb-2">
-                                            Low Stock: <%= p.quantity %> left
-                                        </span>
-                                        <% } else { %>
-                                            <span class="badge bg-success mb-2">
-                                                In Stock: <%= p.quantity %>
-                                            </span>
-                                            <% } %>
-
-                                                <p class="fw-bold mb-3">$<%= Number(p.price).toFixed(2) %>
-                                                </p>
-
-                                                <div class="mt-auto">
-                                                    <% if (p.quantity===0) { %>
-                                                        <button class="btn btn-secondary w-100" disabled>
-                                                            Out of Stock
-                                                        </button>
-                                                        <% } else { %>
-                                                            <form action="/add-to-cart/<%= p.id %>" method="POST"
-                                                                class="d-flex mb-2">
-                                                                <input type="number" name="quantity" min="1" value="1"
-                                                                    class="form-control me-2">
-                                                                <button class="btn btn-success">
-                                                                    <i class="bi bi-cart-plus me-1"></i> Add to Cart
-                                                                </button>
-                                                            </form>
-                                                            <% } %>
-
-                                                                <a href="/product/<%= p.id %>"
-                                                                    class="btn btn-outline-primary w-100">
-                                                                    View Details
-                                                                </a>
-                                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                    <% }); %>
+            <div class="col-md-6">
+                <input type="text" name="search" class="form-control" placeholder="Search for items..."
+                    value="<%= search %>">
             </div>
 
-            <% } %>
-
-                <%- include("partials/footer"); %>
+            <div class="col-md-3">
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    <option value="Fruits" <%=category==="Fruits" ? "selected" : "" %>>Fruits</option>
+                    <option value="Vegetables" <%=category==="Vegetables" ? "selected" : "" %>>Vegetables</option>
+                    <option value="Drinks" <%=category==="Drinks" ? "selected" : "" %>>Drinks</option>
+                    <option value="Snacks" <%=category==="Snacks" ? "selected" : "" %>>Snacks</option>
+                    <option value="Household" <%=category==="Household" ? "selected" : "" %>>Household</option>
+                </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100 fw-bold">
+                        <i class="bi bi-search me-1"></i> Filter
+                    </button>
+                </div>
+                
+                </form>
+                </div>
+                
+                <!-- NO PRODUCTS -->
+                <% if (!products || products.length===0) { %>
+                
+                    <div class="alert alert-info text-center py-3 shadow-sm">
+                        No products found. Try another search.
+                    </div>
+                
+                    <% } else { %>
+                
+                        <!-- PRODUCTS GRID -->
+                        <!-- PRODUCTS GRID (Centered & Clean) -->
+                        <div class="product-grid">
+                            <% products.forEach(p=> { %>
+                                <div class="product-card shadow-sm">
+                
+                                    <img src="/images/<%= p.image %>" class="product-img">
+                
+                                    <h5 class="fw-bold mt-2">
+                                        <%= p.productName %>
+                                    </h5>
+                                    <p class="text-muted small mb-1">
+                                        <%= p.category %>
+                                    </p>
+                
+                                    <% if (p.quantity===0) { %>
+                                        <span class="badge bg-danger mb-2">Out of Stock</span>
+                                        <% } else if (p.quantity <=5) { %>
+                                            <span class="badge bg-warning text-dark mb-2">
+                                                Low Stock: <%= p.quantity %>
+                                            </span>
+                                            <% } else { %>
+                                                <span class="badge bg-success mb-2">
+                                                    In Stock: <%= p.quantity %>
+                                                </span>
+                                                <% } %>
+                
+                                                    <p class="fw-bold fs-5 mt-2">$<%= Number(p.price).toFixed(2) %>
+                                                    </p>
+                
+                                                    <% if (p.quantity> 0) { %>
+                                                        <form action="/add-to-cart/<%= p.id %>" method="POST" class="add-row">
+                                                            <input type="number" name="quantity" min="1" value="1" class="qty-box">
+                                                            <button class="btn-add-cart">
+                                                                <i class="bi bi-cart-plus me-1"></i> Add
+                                                            </button>
+                                                        </form>
+                                                        <% } else { %>
+                                                            <button class="btn-out w-100" disabled>Out of Stock</button>
+                                                            <% } %>
+                
+                                                                <a href="/product/<%= p.id %>" class="btn-view-details">View Details</a>
+                
+                                </div>
+                                <% }); %>
+                        </div>
+                
+                
+                        <% } %>
+                
+                            <%- include("partials/footer"); %>
