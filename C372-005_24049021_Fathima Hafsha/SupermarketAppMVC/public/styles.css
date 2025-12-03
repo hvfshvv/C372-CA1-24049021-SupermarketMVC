@@ -2,41 +2,57 @@
    GLOBAL STYLING
 ===================================================== */
 
-body {
-    background: #f5f7fb !important;
-    font-family: "Segoe UI", sans-serif;
-    color: #333;
+/* Full dark-page background */
+html, body {
+    background: #2e4c7d !important;
+    min-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-/* Soft cards everywhere */
+/* Make main layout transparent, BUT don't break cards */
+.container,
+.row,
+section {
+    background: transparent !important;
+}
+
+/* Smooth card design */
 .card {
     border: none;
     border-radius: 16px;
     box-shadow: 0px 4px 20px rgba(0,0,0,0.07);
 }
 
-/* Nice input fields */
+/* Inputs */
 input, select, textarea {
     border-radius: 8px !important;
 }
 
 /* =====================================================
-   NAVBAR — Gradient + Sticky
+   NAVBAR — Gradient + Sticky + Larger Style
 ===================================================== */
 
 .gradient-navbar {
-    background: linear-gradient(90deg, #1f2a5c, #3545d6, #6c4ad9) !important;
+    background: linear-gradient(90deg, #1f2a5c, #313fbb, #6c4ad9) !important;
+    padding-top: 18px !important;
+    padding-bottom: 18px !important;
 }
 
-.navbar a.nav-link {
+.navbar .nav-link {
     font-weight: 500;
     color: rgba(255,255,255,0.85) !important;
 }
 
-.navbar a.nav-link:hover {
+.navbar .nav-link:hover {
     color: #fff !important;
 }
 
+.navbar-brand {
+    color: #fff !important;
+}
+
+/* Cart Notification Bubble */
 .cart-badge {
     background-color: #ffb020;
     color: #111;
@@ -44,15 +60,14 @@ input, select, textarea {
     padding: 2px 6px;
     border-radius: 50px;
     position: absolute;
-    top: 0;
-    right: -8px;
+    top: -4px;
+    right: -10px;
 }
 
 /* =====================================================
-   TABLES & INVENTORY
+   TABLES (Inventory / Orders)
 ===================================================== */
 
-/* Product images in tables */
 table img {
     width: 60px;
     height: 60px;
@@ -64,21 +79,6 @@ table td {
     vertical-align: middle;
 }
 
-/* Action buttons */
-.btn-delete,
-.btn-edit {
-    padding: 6px 12px;
-    font-size: 14px;
-    border-radius: 6px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-/* Ensure clean background for Actions column */
 td.action-buttons {
     background: #ffffff !important;
     border-bottom: 1px solid #eee;
@@ -89,41 +89,9 @@ tr.table-danger td.action-buttons {
 }
 
 /* =====================================================
-   SHOP PAGE — Product Grid
+   SHOP PAGE — Product Cards
 ===================================================== */
 
-.product-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 25px;
-    justify-items: center;
-    margin-top: 20px;
-}
-
-.product-card {
-    width: 100%;
-    max-width: 220px;
-    background: #ffffff;
-    padding: 15px;
-    border: 1px solid #eee;
-    border-radius: 14px;
-    text-align: center;
-    box-shadow: 0px 3px 10px rgba(0,0,0,0.08);
-    transition: 0.2s ease-in-out;
-}
-
-.product-card:hover {
-    transform: scale(1.04);
-}
-
-.product-card img {
-    width: 180px;
-    height: 140px;
-    object-fit: contain;
-    margin-bottom: 12px;
-}
-
-/* Centered product grid */
 .product-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -132,7 +100,7 @@ tr.table-danger td.action-buttons {
     margin-top: 20px;
 }
 
-/* Clean card */
+/* Product Card */
 .product-card {
     background: #ffffff;
     border-radius: 16px;
@@ -140,23 +108,24 @@ tr.table-danger td.action-buttons {
     width: 100%;
     max-width: 260px;
     text-align: center;
-    transition: 0.25s ease-in-out;
     border: 1px solid #e5e5e5;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
+    transition: 0.25s ease-in-out;
 }
 
 .product-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0px 6px 18px rgba(0,0,0,0.1);
+    box-shadow: 0px 8px 20px rgba(0,0,0,0.12);
 }
 
-/* Product image */
+/* Product Image */
 .product-img {
     width: 100%;
     height: 180px;
     object-fit: contain;
 }
 
-/* Add Row */
+/* Quantity + Add-to-cart row */
 .add-row {
     display: flex;
     gap: 10px;
@@ -170,29 +139,20 @@ tr.table-danger td.action-buttons {
     border: 1px solid #ccc;
 }
 
-/* Add Button */
+/* Add to cart button */
 .btn-add-cart {
     flex: 1;
     background: #198754;
     color: white;
-    border: none;
     border-radius: 8px;
     padding: 8px;
     font-weight: 600;
+    border: none;
     transition: 0.2s;
 }
 
 .btn-add-cart:hover {
     background: #0f5f39;
-}
-
-/* Out of stock button */
-.btn-out {
-    background: #999;
-    color: white;
-    border-radius: 8px;
-    padding: 8px;
-    font-weight: 600;
 }
 
 /* View details */
@@ -205,7 +165,7 @@ tr.table-danger td.action-buttons {
     border: 2px solid #0d6efd;
     color: #0d6efd;
     margin-top: 12px;
-    transition: 0.2s;
+    transition: 0.25s;
 }
 
 .btn-view-details:hover {
@@ -214,45 +174,7 @@ tr.table-danger td.action-buttons {
 }
 
 /* =====================================================
-   SHOP BUTTONS
-===================================================== */
-
-.btn-view {
-    display: block;
-    width: 100%;
-    padding: 8px 10px;
-    border: 2px solid #0d6efd;
-    background: white;
-    color: #0d6efd;
-    font-weight: 600;
-    border-radius: 6px;
-    transition: 0.25s;
-}
-
-.btn-view:hover {
-    background: #e8f1ff;
-    border-color: #0a58ca;
-    color: #0a58ca;
-}
-
-.btn-add {
-    display: block;
-    width: 100%;
-    padding: 10px 10px;
-    background: #198754;
-    color: white;
-    font-weight: 700;
-    border-radius: 6px;
-    transition: 0.25s;
-    border: none;
-}
-
-.btn-add:hover {
-    background: #0f5f39;
-}
-
-/* =====================================================
-   CHECKOUT / PAYMENT PAGE
+   CHECKOUT PAGE
 ===================================================== */
 
 #checkoutSpinner {
@@ -265,7 +187,7 @@ tr.table-danger td.action-buttons {
 }
 
 #confirmBtn:disabled {
-    opacity: 0.7;
+    opacity: 0.6;
     cursor: not-allowed;
 }
 
@@ -297,10 +219,16 @@ tr.table-danger td.action-buttons {
     font-size: 14px;
 }
 
-/* Modern gradient footer */
+/* =====================================================
+   FOOTER
+===================================================== */
+
 .footer-gradient {
     background: linear-gradient(90deg, #1f2a5c, #3545d6, #6c4ad9);
-    border-top-left-radius: 14px;
-    border-top-right-radius: 14px;
-    box-shadow: 0px -3px 15px rgba(0,0,0,0.1);
+    color: #fff;
+    text-align: center;
+    padding: 18px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    margin-top: 40px;
 }

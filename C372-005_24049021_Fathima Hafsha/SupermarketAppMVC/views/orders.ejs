@@ -3,11 +3,16 @@
 <h2 class="fw-bold mb-4">My Orders</h2>
 
 <% if (!orders || orders.length === 0) { %>
+
     <div class="alert alert-info">
         You have not placed any orders yet.
     </div>
+
 <% } else { %>
-    <table class="table table-striped table-bordered">
+
+<div class="card shadow-sm p-3">
+
+    <table class="table table-bordered table-hover align-middle">
         <thead class="table-dark">
             <tr>
                 <th>Order ID</th>
@@ -16,27 +21,24 @@
                 <th>Invoice</th>
             </tr>
         </thead>
-        <tbody>
-            <% orders.forEach(o => { 
-                const dateStr = (o.order_date instanceof Date)
-                    ? o.order_date.toLocaleString()
-                    : String(o.order_date);
 
-                const totalNum = Number(o.total_amount) || 0;
-            %>
-                <tr>
-                    <td>#<%= o.id %></td>
-                    <td><%= dateStr %></td>
-                    <td><%= totalNum.toFixed(2) %></td>
-                    <td>
-                        <a href="/invoice/<%= o.id %>" class="btn btn-sm btn-outline-primary">
-                            Download Invoice
-                        </a>
-                    </td>
-                </tr>
-            <% }); %>
+        <tbody>
+            <% orders.forEach(o => { %>
+            <tr>
+                <td>#<%= o.id %></td>
+                <td><%= (new Date(o.order_date)).toLocaleString() %></td>
+                <td>$<%= Number(o.total_amount).toFixed(2) %></td>
+                <td>
+                    <a href="/invoice/<%= o.id %>" 
+                       class="btn btn-outline-primary btn-sm">Download</a>
+                </td>
+            </tr>
+            <% }) %>
         </tbody>
     </table>
+
+</div>
+
 <% } %>
 
 <a href="/shop" class="btn btn-secondary mt-3">Back to Shop</a>
