@@ -18,23 +18,23 @@ const Cart = {
     },
 
     // ---------------------------------------------------------
-    // ADD ITEM (FULL LOGIC WITH currentCartQty + liveStock)
+    // ADD ITEM TO CART (FIXED LOGIC)
     // ---------------------------------------------------------
     addItem(userId, productId, requestedQty, callback) {
 
-        // 1) Check if item already in cart
-        const checkSql = `
+        // 1. Check if product already exists in cart
+        const cartSql = `
             SELECT quantity 
             FROM cart_items 
             WHERE user_id = ? AND product_id = ?
         `;
 
-        db.query(checkSql, [userId, productId], (err, cartRows) => {
+        db.query(cartSql, [userId, productId], (err, cartRows) => {
             if (err) return callback(err);
 
-            const currentCartQty = cartRows.length > 0 ? cartRows[0].quantity : 0;
+            const currentCartQty = cartRows.length ? cartRows[0].quantity : 0;
 
-            // 2) Get live stock from DB
+            // 2. Get remaining stock in DB (already reduced after each add)
             const stockSql = `SELECT quantity FROM products WHERE id = ?`;
 
             db.query(stockSql, [productId], (err2, stockRows) => {
@@ -42,52 +42,42 @@ const Cart = {
 
                 const dbStock = stockRows[0]?.quantity || 0;
 
-                // 3) Total the customer is allowed to have
-                const maxPossible = currentCartQty + dbStock;
+                // 3. User can add ONLY up to what is left in DB stock
+                const actualAdd = Math.min(requestedQty, dbStock);
 
-                // Clamp requested addition
-                let actualAdd = requestedQty;
-
-                if (currentCartQty + requestedQty > maxPossible) {
-                    actualAdd = maxPossible - currentCartQty;  // clamp
-                }
-
-                // Nothing can be added (no stock)
+                // No stock left → nothing can be added
                 if (actualAdd <= 0) {
-                    return callback(null, { added: 0, max: maxPossible });
+                    return callback(null, { added: 0, max: currentCartQty });
                 }
 
-                // ---------------------------------------------------------
-                // 4A) IF ITEM EXISTS → UPDATE quantity
-                // ---------------------------------------------------------
+                // 4A. Update existing cart item
                 if (cartRows.length > 0) {
                     const updateSql = `
                         UPDATE cart_items
                         SET quantity = quantity + ?
                         WHERE user_id = ? AND product_id = ?
                     `;
-
                     return db.query(
                         updateSql,
                         [actualAdd, userId, productId],
                         (err3) => {
                             if (err3) return callback(err3);
-                            callback(null, { added: actualAdd, max: maxPossible });
+                            callback(null, {
+                                added: actualAdd,
+                                max: currentCartQty + actualAdd
+                            });
                         }
                     );
                 }
 
-                // ---------------------------------------------------------
-                // 4B) IF NOT EXISTS → INSERT new row
-                // ---------------------------------------------------------
+                // 4B. Insert new cart item
                 const insertSql = `
                     INSERT INTO cart_items (user_id, product_id, quantity)
                     VALUES (?, ?, ?)
                 `;
-
                 db.query(insertSql, [userId, productId, actualAdd], (err3) => {
                     if (err3) return callback(err3);
-                    callback(null, { added: actualAdd, max: maxPossible });
+                    callback(null, { added: actualAdd, max: actualAdd });
                 });
             });
         });
@@ -117,7 +107,7 @@ const Cart = {
     },
 
     // ---------------------------------------------------------
-    // CLEAR FULL CART (AFTER ORDER)
+    // CLEAR FULL CART (AFTER CHECKOUT)
     // ---------------------------------------------------------
     clearCart(userId, callback) {
         const sql = `
@@ -128,7 +118,7 @@ const Cart = {
     },
 
     // ---------------------------------------------------------
-    // GET ONE CART ITEM (for update/delete)
+    // GET SINGLE CART ITEM (FOR DELETE/UPDATE)
     // ---------------------------------------------------------
     getItemById(cartId, callback) {
         const sql = `

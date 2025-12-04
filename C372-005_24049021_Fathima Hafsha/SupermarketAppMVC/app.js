@@ -18,7 +18,7 @@ const UserController = require('./controllers/userController');
 const InvoiceController = require('./controllers/invoiceController.js');
 const OrderController = require('./controllers/orderController');
 const Product = require('./models/Product');
-const Cart = require('./models/Cart');   // 👈 NEW: for navbar cartCount
+const Cart = require('./models/Cart');
 
 // ----------------------------
 // Multer (file upload)
@@ -50,7 +50,10 @@ app.use(session({
 }));
 app.use(flash());
 
+// ----------------------------
+// GLOBAL MIDDLEWARE
 // Make user + flash + cartCount available to all views
+// ----------------------------
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     res.locals.messages = req.flash();
@@ -81,7 +84,6 @@ const checkAuthenticated = (req, res, next) => {
     res.redirect('/login');
 };
 
-// Require 2FA before allowing shopping / admin
 const ensure2FA = (req, res, next) => {
     const user = req.session.user;
 
@@ -105,16 +107,21 @@ const checkAdmin = (req, res, next) => {
 };
 
 // ----------------------------
-// ROUTES
+// HOME PAGE (index.ejs)
+// Now loads products for the homepage slider
 // ----------------------------
-
-// Home – redirect based on role
 app.get('/', (req, res) => {
-    if (req.session.user) {
-        if (req.session.user.role === 'admin') return res.redirect('/inventory');
-        return res.redirect('/shopping');
-    }
-    return res.redirect('/login');
+    Product.getAll((err, products) => {
+        if (err) {
+            console.error("Home Product.getAll error:", err);
+            return res.render('index', { user: req.session.user || null, products: [] });
+        }
+
+        res.render('index', {
+            user: req.session.user || null,
+            products
+        });
+    });
 });
 
 // ----------------------------
@@ -127,32 +134,24 @@ app.post('/login', UserController.login);
 app.get('/logout', UserController.logout);
 
 // ----------------------------
-// PROFILE ROUTE
+// PROFILE ROUTES
 // ----------------------------
 app.get('/profile', checkAuthenticated, ensure2FA, UserController.profile);
-app.get('/profile/change-password', checkAuthenticated, ensure2FA, UserController.changePasswordForm);
-app.post('/profile/change-password', checkAuthenticated, ensure2FA, UserController.changePassword);
 
+app.get('/profile/change-password',
+    checkAuthenticated,
+    ensure2FA,
+    UserController.changePasswordForm
+);
 
-// ----------------------------
-// USER PROFILE
-// ----------------------------
-app.get('/profile', checkAuthenticated, ensure2FA, (req, res) => {
-    const userId = req.session.user.id;
-
-    OrderController.getStats(userId, (stats) => {
-        const user = { 
-            ...req.session.user,
-            orderCount: stats.orderCount,
-            totalSpent: stats.totalSpent
-        };
-
-        res.render("profile", { user });
-    });
-});
+app.post('/profile/change-password',
+    checkAuthenticated,
+    ensure2FA,
+    UserController.changePassword
+);
 
 // ----------------------------
-// 2FA ROUTES (Setup + Verify)
+// 2FA ROUTES
 // ----------------------------
 app.get('/2fa/setup', checkAuthenticated, UserController.show2FASetup);
 app.post('/2fa/setup', checkAuthenticated, UserController.verify2FASetup);
@@ -161,15 +160,13 @@ app.get('/2fa/verify', UserController.show2FAVerify);
 app.post('/2fa/verify', UserController.verify2FAVerify);
 
 // ----------------------------
-// Product listing (public)
+// PRODUCTS
 // ----------------------------
 app.get('/shopping', ProductController.list);
-
-// Product details (public)
 app.get('/product/:id', ProductController.getById);
 
 // ----------------------------
-// Admin inventory + CRUD
+// ADMIN INVENTORY
 // ----------------------------
 app.get('/inventory', checkAuthenticated, ensure2FA, checkAdmin, ProductController.list);
 
@@ -210,15 +207,6 @@ app.post(
     ProductController.update
 );
 
-app.put(
-    '/updateproduct/:id',
-    checkAuthenticated,
-    ensure2FA,
-    checkAdmin,
-    upload.single('image'),
-    ProductController.update
-);
-
 app.post(
     '/deleteproduct/:id',
     checkAuthenticated,
@@ -228,7 +216,7 @@ app.post(
 );
 
 // ----------------------------
-// CART (DB-based)
+// CART ROUTES
 // ----------------------------
 app.post('/add-to-cart/:id', checkAuthenticated, ensure2FA, CartController.add);
 app.get('/cart', checkAuthenticated, ensure2FA, CartController.view);
@@ -236,14 +224,14 @@ app.post('/cart/delete/:id', checkAuthenticated, ensure2FA, CartController.delet
 app.post('/cart/update/:id', checkAuthenticated, ensure2FA, CartController.updateQuantity);
 
 // ----------------------------
-// Checkout
+// CHECKOUT
 // ----------------------------
 app.get('/checkout', checkAuthenticated, ensure2FA, CartController.checkoutPage);
 app.post('/checkout/confirm', checkAuthenticated, ensure2FA, CartController.confirmOrder);
 app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.successPage);
 
 // ----------------------------
-// Orders + Invoice
+// ORDERS + INVOICE
 // ----------------------------
 app.get('/orders', checkAuthenticated, ensure2FA, (req, res, next) => {
     if (req.session.user.role === "admin") {
@@ -256,7 +244,7 @@ app.get('/orders', checkAuthenticated, ensure2FA, (req, res, next) => {
 app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);
 
 // ----------------------------
-// Server start
+// START SERVER
 // ----------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>

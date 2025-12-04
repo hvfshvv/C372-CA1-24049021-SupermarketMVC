@@ -1,0 +1,148 @@
+<%- include("partials/header"); %>
+
+<style>
+    body {
+        background: #eef3ff;
+    }
+
+    .hero-container {
+        width: 85%;
+        margin: 40px auto;
+        display: flex;
+        background: rgb(254, 208, 242);
+        border-radius: 25px;
+        padding: 40px 50px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        align-items: center;
+        gap: 40px;
+    }
+
+    .hero-left h5 {
+        color: #7A7FFF;
+        letter-spacing: 2px;
+        font-weight: 600;
+    }
+
+    .hero-left h1 {
+        font-size: 48px;
+        font-weight: 800;
+        margin: 10px 0;
+        color: #1f1f3d;
+        line-height: 1.2;
+    }
+
+    .hero-left p {
+        color: #4a4a6a;
+        margin: 15px 0 30px;
+        font-size: 16px;
+    }
+
+    .start-btn {
+        padding: 12px 28px;
+        background: linear-gradient(90deg, #6a5cff, #4f35ff);
+        border-radius: 30px;
+        color: white;
+        border: none;
+        font-size: 15px;
+        font-weight: 600;
+        transition: 0.25s;
+    }
+
+    .start-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .hero-img {
+        width: 380px;
+    }
+
+    /* SLIDER SECTION */
+    .slider-title {
+        font-size: 26px;
+        font-weight: 700;
+        text-align: center;
+        margin-top: 45px;
+        color: #222047;
+    }
+
+    .slider-container {
+        margin: 20px auto 60px;
+        width: 90%;
+        overflow: hidden;
+    }
+
+    .slider-track {
+        display: flex;
+        gap: 25px;
+        animation: scroll 18s linear infinite;
+    }
+
+    .slider-item {
+        background: rgb(201, 194, 244);
+        min-width: 180px;
+        padding: 18px;
+        border-radius: 18px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: 0.25s;
+    }
+
+    .slider-item:hover {
+        transform: translateY(-8px);
+    }
+
+    .slider-item img {
+        width: 100%;
+        height: 140px;
+        object-fit: contain;
+        margin-bottom: 10px;
+    }
+
+    @keyframes scroll {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+
+</style>
+
+<!-- HERO SECTION -->
+<div class="hero-container">
+    <div class="hero-left">
+        <h5>WELCOME TO</h5>
+        <h1>Your Fresh Grocery Store</h1>
+        <p>Fast delivery • Quality groceries • Safe checkout.<br>
+           Everything you need — all in one place.</p>
+
+        <a href="/shopping">
+            <button class="start-btn">Start Shopping</button>
+        </a>
+    </div>
+
+    <img src="https://cdn-icons-png.flaticon.com/512/3081/3081559.png" class="hero-img">
+</div>
+
+<!-- SLIDER: FEATURED PRODUCTS -->
+<h2 class="slider-title">Popular Groceries</h2>
+
+<div class="slider-container">
+    <div class="slider-track">
+        <% products.forEach(p => { %>
+            <div class="slider-item">
+                <img src="/images/<%= p.image %>" alt="<%= p.productName %>">
+                <h4><%= p.productName %></h4>
+                <p>$<%= p.price %></p>
+            </div>
+        <% }); %>
+
+        <!-- duplicate to create infinite loop -->
+        <% products.forEach(p => { %>
+            <div class="slider-item">
+                <img src="/images/<%= p.image %>" alt="<%= p.productName %>">
+                <h4><%= p.productName %></h4>
+                <p>$<%= p.price %></p>
+            </div>
+        <% }); %>
+    </div>
+</div>
+
+<%- include("partials/footer"); %>
