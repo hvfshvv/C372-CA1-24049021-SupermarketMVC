@@ -1,4 +1,3 @@
-// controllers/productController.js
 const Product = require('../models/Product');
 
 const LOW_STOCK_LIMIT = 10;
@@ -10,74 +9,62 @@ const ProductController = {
         const category = req.query.category || null;
         const user = req.session?.user || null;
 
-        const applyStockFlags = (products) => {
+        // Search + Category
+        if (search && category) {
+            return Product.searchAndFilter(search, category, (err, products) => {
+                if (err) return res.status(500).send("Internal Server Error");
+
+                products.forEach(p => {
+                    p.quantity = Number(p.quantity) || 0;
+                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
+                });
+
+                return res.render("shopping", { products, user, search, category });
+            });
+        }
+
+        // Category only
+        if (category) {
+            return Product.filterByCategory(category, (err, products) => {
+                if (err) return res.status(500).send("Internal Server Error");
+
+                products.forEach(p => {
+                    p.quantity = Number(p.quantity) || 0;
+                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
+                });
+
+                return res.render("shopping", { products, user, search: "", category });
+            });
+        }
+
+        // Search only
+        if (search) {
+            return Product.search(search, (err, products) => {
+                if (err) return res.status(500).send("Internal Server Error");
+
+                products.forEach(p => {
+                    p.quantity = Number(p.quantity) || 0;
+                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
+                });
+
+                return res.render("shopping", { products, user, search, category: "" });
+            });
+        }
+
+        // Default
+        Product.getAll((err, products) => {
+            if (err) return res.status(500).send("Internal Server Error");
+
             products.forEach(p => {
                 p.quantity = Number(p.quantity) || 0;
                 p.lowStock = p.quantity < LOW_STOCK_LIMIT;
             });
-        };
-
-        // CASE 1 — Search + Filter
-        if (search && category) {
-            return Product.searchAndFilter(search, category, (err, products) => {
-                if (err) return res.status(500).send("Internal Server Error");
-                applyStockFlags(products);
-
-                return res.render("shop", {
-                    products,
-                    user,
-                    search,
-                    category
-                });
-            });
-        }
-
-        // CASE 2 — Category only
-        if (category) {
-            return Product.filterByCategory(category, (err, products) => {
-                if (err) return res.status(500).send("Internal Server Error");
-                applyStockFlags(products);
-
-                return res.render("shop", {
-                    products,
-                    user,
-                    search: "",
-                    category
-                });
-            });
-        }
-
-        // CASE 3 — Search only
-        if (search) {
-            return Product.search(search, (err, products) => {
-                if (err) return res.status(500).send("Internal Server Error");
-                applyStockFlags(products);
-
-                return res.render("shop", {
-                    products,
-                    user,
-                    search,
-                    category: ""
-                });
-            });
-        }
-
-        // CASE 4 — Default listing
-        Product.getAll((err, products) => {
-            if (err) return res.status(500).send("Internal Server Error");
-
-            applyStockFlags(products);
 
             if (user && user.role === 'admin') {
                 return res.render("inventory", { products, user });
             }
 
-            return res.render("shop", {
-                products,
-                user,
-                search: "",
-                category: ""
-            });
+            return res.render("shopping", { products, user, search: "", category: "" });
         });
     },
 

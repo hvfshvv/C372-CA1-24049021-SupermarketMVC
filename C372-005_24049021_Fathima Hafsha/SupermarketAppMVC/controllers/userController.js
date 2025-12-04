@@ -76,7 +76,7 @@ const UserController = {
 
         if (user.twofa_enabled) {
             req.flash("success", "2FA already enabled.");
-            return res.redirect("/shop");
+            return res.redirect("/shopping");
         }
 
         const secret = speakeasy.generateSecret({
@@ -119,7 +119,7 @@ const UserController = {
             delete req.session.temp2FASecret;
 
             req.flash("success", "2FA enabled successfully!");
-            res.redirect("/shop");
+            res.redirect("/shopping");
         });
     },
 
@@ -152,7 +152,7 @@ const UserController = {
 
         return tempUser.role === "admin"
             ? res.redirect("/inventory")
-            : res.redirect("/shop");
+            : res.redirect("/shopping");
     },
 
     // -------------------------

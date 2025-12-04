@@ -101,7 +101,7 @@ const ensure2FA = (req, res, next) => {
 const checkAdmin = (req, res, next) => {
     if (req.session.user && req.session.user.role === 'admin') return next();
     req.flash('error', 'Access denied.');
-    res.redirect('/shop');
+    res.redirect('/shopping');
 };
 
 // ----------------------------
@@ -112,7 +112,7 @@ const checkAdmin = (req, res, next) => {
 app.get('/', (req, res) => {
     if (req.session.user) {
         if (req.session.user.role === 'admin') return res.redirect('/inventory');
-        return res.redirect('/shop');
+        return res.redirect('/shopping');
     }
     return res.redirect('/login');
 });
@@ -163,7 +163,7 @@ app.post('/2fa/verify', UserController.verify2FAVerify);
 // ----------------------------
 // Product listing (public)
 // ----------------------------
-app.get('/shop', ProductController.list);
+app.get('/shopping', ProductController.list);
 
 // Product details (public)
 app.get('/product/:id', ProductController.getById);
