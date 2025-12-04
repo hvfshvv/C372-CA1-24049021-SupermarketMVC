@@ -1,3 +1,4 @@
+// models/Cart.js
 const db = require("../db");
 
 const Cart = {
@@ -5,7 +6,7 @@ const Cart = {
     getCart(userId, callback) {
         const sql = `
             SELECT c.id AS cart_id, c.quantity, 
-                    p.id AS product_id, p.productName, p.price, p.image 
+                   p.id AS product_id, p.productName, p.price, p.image 
             FROM cart_items c
             JOIN products p ON p.id = c.product_id
             WHERE c.user_id = ?
@@ -61,6 +62,17 @@ const Cart = {
             DELETE FROM cart_items WHERE user_id = ?
         `;
         db.query(sql, [userId], callback);
+    },
+
+    // Get single cart item by its ID (for delete + stock restore)
+    getItemById(cartId, callback) {
+        const sql = `
+            SELECT * FROM cart_items WHERE id = ?
+        `;
+        db.query(sql, [cartId], (err, results) => {
+            if (err) return callback(err);
+            callback(null, results[0] || null);
+        });
     }
 };
 

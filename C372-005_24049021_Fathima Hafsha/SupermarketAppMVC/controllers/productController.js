@@ -1,6 +1,7 @@
+// controllers/productController.js
 const Product = require('../models/Product');
 
-const LOW_STOCK_LIMIT = 10;   // 🔥 One rule for entire app
+const LOW_STOCK_LIMIT = 10;
 
 const ProductController = {
 
@@ -9,17 +10,20 @@ const ProductController = {
         const category = req.query.category || null;
         const user = req.session?.user || null;
 
-        // CASE 1 — Search + Category
+        const applyStockFlags = (products) => {
+            products.forEach(p => {
+                p.quantity = Number(p.quantity) || 0;
+                p.lowStock = p.quantity < LOW_STOCK_LIMIT;
+            });
+        };
+
+        // CASE 1 — Search + Filter
         if (search && category) {
             return Product.searchAndFilter(search, category, (err, products) => {
                 if (err) return res.status(500).send("Internal Server Error");
+                applyStockFlags(products);
 
-                products.forEach(p => {
-                    p.quantity = Number(p.quantity) || 0;
-                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
-                });
-
-                return res.render("shopping", {
+                return res.render("shop", {
                     products,
                     user,
                     search,
@@ -32,13 +36,9 @@ const ProductController = {
         if (category) {
             return Product.filterByCategory(category, (err, products) => {
                 if (err) return res.status(500).send("Internal Server Error");
+                applyStockFlags(products);
 
-                products.forEach(p => {
-                    p.quantity = Number(p.quantity) || 0;
-                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
-                });
-
-                return res.render("shopping", {
+                return res.render("shop", {
                     products,
                     user,
                     search: "",
@@ -51,13 +51,9 @@ const ProductController = {
         if (search) {
             return Product.search(search, (err, products) => {
                 if (err) return res.status(500).send("Internal Server Error");
+                applyStockFlags(products);
 
-                products.forEach(p => {
-                    p.quantity = Number(p.quantity) || 0;
-                    p.lowStock = p.quantity < LOW_STOCK_LIMIT;
-                });
-
-                return res.render("shopping", {
+                return res.render("shop", {
                     products,
                     user,
                     search,
@@ -66,20 +62,17 @@ const ProductController = {
             });
         }
 
-        // CASE 4 — Default (all products)
+        // CASE 4 — Default listing
         Product.getAll((err, products) => {
             if (err) return res.status(500).send("Internal Server Error");
 
-            products.forEach(p => {
-                p.quantity = Number(p.quantity) || 0;
-                p.lowStock = p.quantity < LOW_STOCK_LIMIT;
-            });
+            applyStockFlags(products);
 
             if (user && user.role === 'admin') {
                 return res.render("inventory", { products, user });
             }
 
-            return res.render("shopping", {
+            return res.render("shop", {
                 products,
                 user,
                 search: "",
@@ -95,7 +88,6 @@ const ProductController = {
             if (err) return res.status(500).send("Internal Server Error");
             if (!product) return res.status(404).send("Product not found");
 
-            // Apply consistent rule here too
             product.lowStock = product.quantity < LOW_STOCK_LIMIT;
 
             res.render("product", {

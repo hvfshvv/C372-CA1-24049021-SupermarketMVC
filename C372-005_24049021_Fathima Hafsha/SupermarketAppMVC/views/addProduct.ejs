@@ -1,44 +1,47 @@
 <%- include("partials/header"); %>
 
-<h1>Add New Product</h1>
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <h2 class="fw-bold mb-3">Add New Product</h2>
 
-<form action="/addproduct" method="POST" enctype="multipart/form-data" class="mt-3">
+            <form action="/addproduct" method="POST" enctype="multipart/form-data" class="card p-4 shadow-sm">
 
-    <div class="mb-3">
-        <label>Product Name</label>
-        <input type="text" name="productName" class="form-control" required>
+                <div class="mb-3">
+                    <label class="form-label">Product Name</label>
+                    <input type="text" name="productName" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" name="quantity" class="form-control" min="0" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Price ($)</label>
+                    <input type="number" name="price" step="0.01" class="form-control" min="0" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="Fruits">Fruits</option>
+                        <option value="Vegetables">Vegetables</option>
+                        <option value="Dairy">Dairy</option>
+                        <option value="Bakery">Bakery</option>
+                        <option value="Beverages">Beverages</option>
+                        <option value="Snacks">Snacks</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Image</label>
+                    <input type="file" name="image" class="form-control" required>
+                </div>
+
+                <button class="btn btn-success fw-bold">Add Product</button>
+            </form>
+        </div>
     </div>
 
-    <div class="mb-3">
-        <label>Quantity</label>
-        <input type="number" name="quantity" class="form-control" required>
-    </div>
-
-    <div class="mb-3">
-        <label>Price</label>
-        <input type="number" name="price" step="0.01" class="form-control" required>
-    </div>
-
-    <!-- CATEGORY DROPDOWN ADDED -->
-    <div class="mb-3">
-        <label>Category</label>
-        <select name="category" class="form-select">
-            <option value="Fruits">Fruits</option>
-            <option value="Vegetables">Vegetables</option>
-            <option value="Dairy">Dairy</option>
-            <option value="Bakery">Bakery</option>
-            <option value="Beverages">Beverages</option>
-            <option value="Snacks">Snacks</option>
-            <option value="Other">Other</option>
-        </select>
-    </div>
-
-    <div class="mb-3">
-        <label>Image</label>
-        <input type="file" name="image" class="form-control" required>
-    </div>
-
-    <button class="btn btn-success">Add Product</button>
-</form>
-
-<%- include("partials/footer"); %>
+    <%- include("partials/footer"); %>

@@ -164,7 +164,6 @@ app.post('/2fa/verify', UserController.verify2FAVerify);
 // Product listing (public)
 // ----------------------------
 app.get('/shop', ProductController.list);
-app.get('/shopping', ProductController.list);
 
 // Product details (public)
 app.get('/product/:id', ProductController.getById);

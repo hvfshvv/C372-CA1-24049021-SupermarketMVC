@@ -1,0 +1,94 @@
+<%- include("partials/header"); %>
+
+    <div class="shop-header d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">Shop</h2>
+    </div>
+
+    <!-- Search + Category Filter -->
+    <div class="card shadow-sm p-4 mb-4">
+        <form class="row g-3" method="GET" action="/shop">
+
+            <div class="col-md-6">
+                <input type="text" name="search" class="form-control" placeholder="Search for items..."
+                    value="<%= search %>">
+            </div>
+
+            <div class="col-md-3">
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    <option value="Fruits" <%=category==="Fruits" ?"selected":"" %>>Fruits</option>
+                    <option value="Vegetables" <%=category==="Vegetables" ?"selected":"" %>>Vegetables</option>
+                    <option value="Dairy" <%=category==="Dairy" ?"selected":"" %>>Dairy</option>
+                    <option value="Bakery" <%=category==="Bakery" ?"selected":"" %>>Bakery</option>
+                    <option value="Beverages" <%=category==="Beverages" ?"selected":"" %>>Beverages</option>
+                    <option value="Snacks" <%=category==="Snacks" ?"selected":"" %>>Snacks</option>
+                    <option value="Other" <%=category==="Other" ?"selected":"" %>>Other</option>
+                </select>
+
+            </div>
+
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100 fw-bold">
+                    <i class="bi bi-search me-1"></i> Filter
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- NO PRODUCTS -->
+    <% if (!products || products.length===0) { %>
+        <div class="alert alert-info text-center py-3 shadow-sm">
+            No products found. Try another search.
+        </div>
+        <% } else { %>
+
+            <!-- PRODUCTS GRID -->
+            <div class="product-grid">
+                <% products.forEach(p=> { %>
+                    <div class="product-card shadow-sm">
+
+                        <img src="/images/<%= p.image %>" class="product-img" alt="<%= p.productName %>">
+
+                        <h5 class="fw-bold mt-2">
+                            <%= p.productName %>
+                        </h5>
+                        <p class="text-muted small mb-1">
+                            <%= p.category %>
+                        </p>
+
+                        <% if (p.quantity===0) { %>
+                            <span class="badge bg-danger mb-2">Out of Stock</span>
+                            <% } else if (p.quantity <=5) { %>
+                                <span class="badge bg-warning text-dark mb-2">
+                                    Low Stock: <%= p.quantity %>
+                                </span>
+                                <% } else { %>
+                                    <span class="badge bg-success mb-2">
+                                        In Stock: <%= p.quantity %>
+                                    </span>
+                                    <% } %>
+
+                                        <p class="fw-bold fs-5 mt-2">$<%= Number(p.price).toFixed(2) %>
+                                        </p>
+
+                                        <% if (p.quantity> 0) { %>
+                                            <form action="/add-to-cart/<%= p.id %>" method="POST" class="add-row">
+                                                <input type="number" name="quantity" min="1" value="1" class="qty-box">
+                                                <button class="btn-add-cart">
+                                                    <i class="bi bi-cart-plus me-1"></i> Add
+                                                </button>
+                                            </form>
+                                            <% } else { %>
+                                                <button class="btn-out w-100" disabled>Out of Stock</button>
+                                                <% } %>
+
+                                                    <a href="/product/<%= p.id %>" class="btn-view-details mt-2">View
+                                                        Details</a>
+                    </div>
+                    <% }); %>
+            </div>
+
+            <% } %>
+
+                <%- include("partials/footer"); %>

@@ -106,4 +106,9 @@ const Product = {
     }
 };
 
+Product.increaseStock = (id, qty, callback) => {
+    const sql = "UPDATE products SET quantity = quantity + ? WHERE id = ?";
+    db.query(sql, [qty, id], callback);
+};
+
 module.exports = Product;

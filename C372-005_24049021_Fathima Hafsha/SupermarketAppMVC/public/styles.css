@@ -2,19 +2,23 @@
    GLOBAL STYLING
 ===================================================== */
 
-/* Full dark-page background */
+/* Soft blue app background */
 html, body {
-    background: #2e4c7d !important;
-    min-height: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    background: #f0f4ff !important;  /* Option A */
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+    color: #333;
 }
 
-/* Make main layout transparent, BUT don't break cards */
-.container,
-.row,
-section {
-    background: transparent !important;
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1 0 auto;
 }
 
 /* Smooth card design */
@@ -52,7 +56,7 @@ input, select, textarea {
     color: #fff !important;
 }
 
-/* Cart Notification Bubble */
+/* Cart bubble */
 .cart-badge {
     background-color: #ffb020;
     color: #111;
@@ -110,7 +114,7 @@ tr.table-danger td.action-buttons {
     text-align: center;
     border: 1px solid #e5e5e5;
     box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
-    transition: 0.25s ease-in-out;
+    transition: 0.25s;
 }
 
 .product-card:hover {
@@ -125,7 +129,7 @@ tr.table-danger td.action-buttons {
     object-fit: contain;
 }
 
-/* Quantity + Add-to-cart row */
+/* Add row */
 .add-row {
     display: flex;
     gap: 10px;
@@ -139,7 +143,6 @@ tr.table-danger td.action-buttons {
     border: 1px solid #ccc;
 }
 
-/* Add to cart button */
 .btn-add-cart {
     flex: 1;
     background: #198754;
@@ -220,15 +223,16 @@ tr.table-danger td.action-buttons {
 }
 
 /* =====================================================
-   FOOTER
+   FOOTER — FIXED & CLEAN
 ===================================================== */
 
 .footer-gradient {
-    background: linear-gradient(90deg, #1f2a5c, #3545d6, #6c4ad9);
+    background: linear-gradient(90deg, #1f2a5c, #313fbb, #6c4ad9);
     color: #fff;
     text-align: center;
     padding: 18px;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
     margin-top: 40px;
+    border-radius: 0 !important; /* No curve */
+    width: 100%;
+    flex-shrink: 0;
 }
