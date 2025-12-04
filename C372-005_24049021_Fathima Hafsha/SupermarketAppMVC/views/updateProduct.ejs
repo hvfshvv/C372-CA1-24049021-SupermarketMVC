@@ -1,40 +1,72 @@
 <%- include('partials/header') %>
 
-<h2>Update Product</h2>
+<div class="container mt-4" style="max-width: 650px;">
 
-<form action="/updateproduct/<%= product.id %>?_method=PUT" method="POST" enctype="multipart/form-data">
+    <h2 class="fw-bold mb-3">Update Product</h2>
 
-    <label>Name:</label>
-    <input type="text" name="productName" value="<%= product.productName %>" required><br><br>
+    <form action="/updateproduct/<%= product.id %>" 
+          method="POST" enctype="multipart/form-data"
+          class="card p-4 shadow-lg rounded-4">
 
-    <label>Quantity:</label>
-    <input type="number" name="quantity" value="<%= product.quantity %>" required><br><br>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Product Name</label>
+            <input type="text" 
+                   name="productName" 
+                   class="form-control rounded-3"
+                   value="<%= product.productName %>" required>
+        </div>
 
-    <label>Price:</label>
-    <input type="number" name="price" value="<%= product.price %>" step="0.01" required><br><br>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Quantity</label>
+            <input type="number" 
+                   name="quantity" 
+                   class="form-control rounded-3"
+                   value="<%= product.quantity %>" min="0" required>
+        </div>
 
-    <!-- CATEGORY DROPDOWN ADDED -->
-    <label>Category:</label>
-    <select name="category" required>
-        <option value="Fruits"     <%= product.category === "Fruits" ? "selected" : "" %>>Fruits</option>
-        <option value="Vegetables" <%= product.category === "Vegetables" ? "selected" : "" %>>Vegetables</option>
-        <option value="Dairy"      <%= product.category === "Dairy" ? "selected" : "" %>>Dairy</option>
-        <option value="Bakery"     <%= product.category === "Bakery" ? "selected" : "" %>>Bakery</option>
-        <option value="Beverages"  <%= product.category === "Beverages" ? "selected" : "" %>>Beverages</option>
-        <option value="Snacks"     <%= product.category === "Snacks" ? "selected" : "" %>>Snacks</option>
-        <option value="Other"      <%= product.category === "Other" ? "selected" : "" %>>Other</option>
-    </select>
-    <br><br>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Price ($)</label>
+            <input type="number" 
+                   name="price" 
+                   step="0.01" 
+                   class="form-control rounded-3"
+                   value="<%= product.price %>" min="0" required>
+        </div>
 
-    <label>Current Image:</label><br>
-    <img src="/images/<%= product.image %>" width="150"><br><br>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Category</label>
+            <select name="category" class="form-select rounded-3">
+                <option value="Fruits"     <%= product.category === "Fruits" ? "selected" : "" %>>Fruits</option>
+                <option value="Vegetables" <%= product.category === "Vegetables" ? "selected" : "" %>>Vegetables</option>
+                <option value="Dairy"      <%= product.category === "Dairy" ? "selected" : "" %>>Dairy</option>
+                <option value="Bakery"     <%= product.category === "Bakery" ? "selected" : "" %>>Bakery</option>
+                <option value="Beverages"  <%= product.category === "Beverages" ? "selected" : "" %>>Beverages</option>
+                <option value="Snacks"     <%= product.category === "Snacks" ? "selected" : "" %>>Snacks</option>
+                <option value="Other"      <%= product.category === "Other" ? "selected" : "" %>>Other</option>
+            </select>
+        </div>
 
-    <label>Upload New Image:</label>
-    <input type="file" name="image"><br><br>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Current Image</label><br>
+            <img src="/images/<%= product.image %>" 
+                 class="rounded mb-2" 
+                 width="150">
+        </div>
 
-    <input type="hidden" name="currentImage" value="<%= product.image %>">
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Upload New Image</label>
+            <input type="file" name="image" class="form-control rounded-3">
+        </div>
 
-    <button type="submit">Update Product</button>
-</form>
+        <!-- Keep old image if new one not uploaded -->
+        <input type="hidden" name="currentImage" value="<%= product.image %>">
+
+        <button class="btn btn-warning fw-bold rounded-4 px-4 mt-2">
+            Update Product
+        </button>
+
+    </form>
+
+</div>
 
 <%- include('partials/footer') %>

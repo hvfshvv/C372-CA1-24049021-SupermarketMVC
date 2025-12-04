@@ -225,7 +225,10 @@ const UserController = {
                 return res.redirect("/profile/change-password");
             }
 
-            User.updatePassword(userId, newPassword, () => {
+            User.updatePassword(userId, newPassword, (err) => {
+                if (err) {
+                    return res.redirect("/profile?pwChanged=0");
+                }
                 return res.redirect("/profile?pwChanged=1");
             });
         });

@@ -1,21 +1,26 @@
 <%- include("partials/header"); %>
 
-<div class="container mt-5 mb-5" style="max-width: 800px;">
+<div class="container mt-5" style="max-width: 850px;">
 
-    <h2 class="fw-bold text-center mb-4">Payment Successful</h2>
+    <div class="text-center mb-4">
+        <h2 class="fw-bold">🎉 Payment Successful</h2>
+        <p class="text-muted">Thank you for shopping with us, <%= user.username %>!</p>
+    </div>
 
     <% if (order) { %>
+    <div class="card shadow-lg p-4 rounded-4">
 
-        <p class="text-center">
-            Your order has been placed successfully.<br>
-            Order ID: <strong>#<%= order.id %></strong><br>
-            Date: <%= new Date(order.order_date).toLocaleString() %>
-        </p>
+        <h5 class="fw-bold text-primary mb-3">Order Details</h5>
 
-        <h4 class="mt-4 fw-bold">Order Summary</h4>
+        <div class="bg-light rounded-4 p-3 mb-3">
+            <p class="mb-1">Order ID: <strong>#<%= order.id %></strong></p>
+            <p class="mb-0">Placed On: <%= new Date(order.order_date).toLocaleString() %></p>
+        </div>
 
-        <div class="card p-3 shadow-sm mt-3">
-            <table class="table table-bordered">
+        <h5 class="fw-bold text-primary">Order Summary</h5>
+
+        <div class="table-responsive mt-3">
+            <table class="table table-hover align-middle">
                 <thead class="table-dark">
                     <tr>
                         <th>Product</th>
@@ -36,22 +41,22 @@
                     <% }) %>
                 </tbody>
             </table>
-
-            <h4 class="text-end fw-bold">
-                Grand Total: $<%= Number(order.total_amount).toFixed(2) %>
-            </h4>
         </div>
+
+        <h4 class="text-end fw-bold mt-3">
+            Grand Total: $<%= Number(order.total_amount).toFixed(2) %>
+        </h4>
 
         <div class="text-center mt-4">
-            <a href="/invoice/<%= order.id %>" class="btn btn-primary">Download Invoice</a>
-            <a href="/orders" class="btn btn-outline-secondary ms-2">View Orders</a>
-            <a href="/shopping" class="btn btn-success ms-2">Continue Shopping</a>
+            <a href="/invoice/<%= order.id %>" class="btn btn-primary px-4 rounded-4">Download Invoice</a>
+            <a href="/orders" class="btn btn-outline-secondary px-4 rounded-4 ms-2">View Orders</a>
+            <a href="/shopping" class="btn btn-success px-4 rounded-4 ms-2">Continue Shopping</a>
         </div>
 
+    </div>
+
     <% } else { %>
-
-        <p class="text-center">Your order has been placed.</p>
-
+        <p class="text-center text-danger fw-bold">Order not found.</p>
     <% } %>
 
 </div>

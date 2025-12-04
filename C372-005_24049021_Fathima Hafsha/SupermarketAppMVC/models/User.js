@@ -67,7 +67,7 @@ const User = {
     },
 
     // --------------------------------------------------
-    // UPDATE PASSWORD  ✅ FIXED (now inside User object)
+    // UPDATE PASSWORD  
     // --------------------------------------------------
     updatePassword: (userId, newPassword, callback) => {
         const sql = `
@@ -77,7 +77,6 @@ const User = {
         `;
         db.query(sql, [newPassword, userId], callback);
     }
-
 };
 
 module.exports = User;

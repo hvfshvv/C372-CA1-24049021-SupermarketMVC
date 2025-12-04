@@ -51,7 +51,7 @@ const ProductController = {
             });
         }
 
-        // Default
+        // Default (ALL PRODUCTS)
         Product.getAll((err, products) => {
             if (err) return res.status(500).send("Internal Server Error");
 
@@ -60,11 +60,22 @@ const ProductController = {
                 p.lowStock = p.quantity < LOW_STOCK_LIMIT;
             });
 
+            // ADMIN INVENTORY PAGE — now sends flash messages
             if (user && user.role === 'admin') {
-                return res.render("inventory", { products, user });
+                return res.render("inventory", { 
+                    products, 
+                    user,
+                    messages: req.flash()     // 🔥 REQUIRED FOR SUCCESS POPUPS
+                });
             }
 
-            return res.render("shopping", { products, user, search: "", category: "" });
+            // USER SHOPPING PAGE
+            return res.render("shopping", { 
+                products, 
+                user, 
+                search: "", 
+                category: "" 
+            });
         });
     },
 
@@ -95,6 +106,8 @@ const ProductController = {
 
         Product.add(product, err => {
             if (err) return res.status(500).send("Failed to add product");
+
+            req.flash("success", "Product added successfully!"); // ✅
             res.redirect('/inventory');
         });
     },
@@ -113,6 +126,8 @@ const ProductController = {
         Product.update(id, product, (err, result) => {
             if (err) return res.status(500).send("Failed to update product");
             if (result.affectedRows === 0) return res.status(404).send("Product not found");
+
+            req.flash("success", "Product updated successfully!"); // ✅
             res.redirect('/inventory');
         });
     },
@@ -123,6 +138,8 @@ const ProductController = {
         Product.delete(id, (err, result) => {
             if (err) return res.status(500).send("Failed to delete product");
             if (result.affectedRows === 0) return res.status(404).send("Product not found");
+
+            req.flash("success", "Product deleted successfully!"); // ✅
             res.redirect('/inventory');
         });
     }

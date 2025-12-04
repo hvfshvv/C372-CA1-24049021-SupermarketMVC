@@ -1,77 +1,129 @@
 <%- include("partials/header"); %>
 
-<h1 class="mb-4">Inventory Management</h1>
+<!-- SWEETALERT2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<a href="/addproduct" class="btn btn-success mb-3">+ Add Product</a>
+<!-- SUCCESS POPUP (ADD / EDIT PRODUCT) -->
+<% if (messages && messages.success && messages.success.length > 0) { %>
+<script>
+Swal.fire({
+    icon: "success",
+    title: "Success!",
+    text: "<%= messages.success[0] %>",
+    confirmButtonColor: "#28a745"
+});
+</script>
+<% } %>
 
-<table class="table table-bordered table-striped">
-    <thead class="table-dark">
-        <tr>
-            <th>ID</th>
-            <th>Image</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Qty</th>
-            <th>Price ($)</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    
-    <tbody>
-        <% products.forEach(p => { %>
-        <tr class="<%= p.quantity < 10 ? 'table-danger' : '' %>">
+<div class="container mt-4">
 
-            <!-- ID -->
-            <td><%= p.id %></td>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">Inventory Management</h2>
+        <a href="/addproduct" class="btn btn-success rounded-4 fw-semibold">+ Add Product</a>
+    </div>
 
-            <!-- IMAGE -->
-            <td>
-                <img src="/images/<%= p.image %>" 
-                     style="height:60px; width:60px; object-fit:cover;">
-            </td>
+    <div class="card shadow-sm p-3 rounded-4">
 
-            <!-- NAME -->
-            <td><%= p.productName %></td>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Price ($)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
 
-            <!-- CATEGORY BADGE -->
-            <td>
-                <span class="badge 
-                    <% if (p.category === 'Fruits') { %> bg-success 
-                    <% } else if (p.category === 'Vegetables') { %> bg-success 
-                    <% } else if (p.category === 'Dairy') { %> bg-primary 
-                    <% } else if (p.category === 'Bakery') { %> bg-warning text-dark
-                    <% } else if (p.category === 'Beverages') { %> bg-info text-dark
-                    <% } else if (p.category === 'Snacks') { %> bg-danger 
-                    <% } else { %> bg-secondary <% } %>
-                ">
-                    <%= p.category %>
-                </span>
-            </td>
+                <tbody>
+                    <% products.forEach(p=> { %>
+                        <tr class="<%= p.quantity < 10 ? 'table-danger' : '' %>">
 
-            <!-- QUANTITY WITH LOW STOCK ALERT -->
-            <td>
-                <% if (p.quantity < 10) { %>
-                    <span class="text-danger fw-bold">Low Stock! (<%= p.quantity %> left)</span>
-                <% } else { %>
-                    <%= p.quantity %>
-                <% } %>
-            </td>
+                            <td><%= p.id %></td>
 
-            <!-- PRICE -->
-            <td>$<%= p.price.toFixed(2) %></td>
+                            <td>
+                                <img src="/images/<%= p.image %>"
+                                    style="height:60px; width:60px; object-fit:cover; border-radius:8px;">
+                            </td>
 
-            <!-- ACTIONS -->
-            <td>
-                <a href="/updateproduct/<%= p.id %>" class="btn btn-warning btn-sm mb-1">Edit</a>
+                            <td class="fw-semibold"><%= p.productName %></td>
 
-                <form action="/deleteproduct/<%= p.id %>" method="POST" style="display:inline;">
-                    <button class="btn btn-danger btn-sm">Delete</button>
-                </form>
-            </td>
+                            <!-- CATEGORY BADGE -->
+                            <td>
+                                <span class="badge px-3 py-2 rounded-pill
+                                    <% if (p.category === 'Fruits' || p.category === 'Vegetables') { %> bg-success 
+                                    <% } else if (p.category === 'Dairy') { %> bg-primary 
+                                    <% } else if (p.category === 'Bakery') { %> bg-warning text-dark
+                                    <% } else if (p.category === 'Beverages') { %> bg-info text-dark
+                                    <% } else if (p.category === 'Snacks') { %> bg-danger 
+                                    <% } else { %> bg-secondary <% } %>">
+                                    <%= p.category %>
+                                </span>
+                            </td>
 
-        </tr>
-        <% }) %>
-    </tbody>
-</table>
+                            <!-- QUANTITY -->
+                            <td>
+                                <% if (p.quantity < 10) { %>
+                                    <span class="text-danger fw-bold">Low Stock (<%= p.quantity %>)</span>
+                                <% } else { %>
+                                    <%= p.quantity %>
+                                <% } %>
+                            </td>
+
+                            <td>$<%= p.price.toFixed(2) %></td>
+
+                            <td>
+                                <a href="/updateproduct/<%= p.id %>" class="btn btn-warning btn-sm rounded-3">
+                                    Edit
+                                </a>
+
+                                <!-- DELETE BUTTON WITH SWEETALERT -->
+                                <button class="btn btn-danger btn-sm rounded-3"
+                                    onclick="confirmDelete('<%= p.id %>')">
+                                    Delete
+                                </button>
+
+                                <!-- Hidden form to submit on confirm -->
+                                <form id="deleteForm-<%= p.id %>" 
+                                    action="/deleteproduct/<%= p.id %>" 
+                                    method="POST"
+                                    style="display:none;">
+                                </form>
+
+                            </td>
+
+                        </tr>
+                    <% }) %>
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- SWEETALERT DELETE CONFIRMATION -->
+<script>
+function confirmDelete(id) {
+    Swal.fire({
+        title: "Delete this product?",
+        text: "This action cannot be undone!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it",
+        cancelButtonText: "Cancel",
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById(`deleteForm-${id}`).submit();
+        }
+    });
+}
+</script>
 
 <%- include("partials/footer"); %>

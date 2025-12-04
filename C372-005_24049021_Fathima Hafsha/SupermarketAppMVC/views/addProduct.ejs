@@ -1,47 +1,48 @@
 <%- include("partials/header"); %>
 
-    <div class="row justify-content-center mt-4">
-        <div class="col-md-8">
-            <h2 class="fw-bold mb-3">Add New Product</h2>
+<div class="container mt-4" style="max-width: 650px;">
 
-            <form action="/addproduct" method="POST" enctype="multipart/form-data" class="card p-4 shadow-sm">
+    <h2 class="fw-bold mb-3">Add New Product</h2>
 
-                <div class="mb-3">
-                    <label class="form-label">Product Name</label>
-                    <input type="text" name="productName" class="form-control" required>
-                </div>
+    <form action="/addproduct" method="POST" enctype="multipart/form-data" 
+          class="card p-4 shadow-lg rounded-4">
 
-                <div class="mb-3">
-                    <label class="form-label">Quantity</label>
-                    <input type="number" name="quantity" class="form-control" min="0" required>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Price ($)</label>
-                    <input type="number" name="price" step="0.01" class="form-control" min="0" required>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Category</label>
-                    <select name="category" class="form-select">
-                        <option value="Fruits">Fruits</option>
-                        <option value="Vegetables">Vegetables</option>
-                        <option value="Dairy">Dairy</option>
-                        <option value="Bakery">Bakery</option>
-                        <option value="Beverages">Beverages</option>
-                        <option value="Snacks">Snacks</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Image</label>
-                    <input type="file" name="image" class="form-control" required>
-                </div>
-
-                <button class="btn btn-success fw-bold">Add Product</button>
-            </form>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Product Name</label>
+            <input type="text" name="productName" class="form-control rounded-3" required>
         </div>
-    </div>
 
-    <%- include("partials/footer"); %>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Quantity</label>
+            <input type="number" name="quantity" class="form-control rounded-3" min="0" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Price ($)</label>
+            <input type="number" name="price" step="0.01" class="form-control rounded-3" min="0" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Category</label>
+            <select name="category" class="form-select rounded-3">
+                <option>Fruits</option>
+                <option>Vegetables</option>
+                <option>Dairy</option>
+                <option>Bakery</option>
+                <option>Beverages</option>
+                <option>Snacks</option>
+                <option>Other</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Product Image</label>
+            <input type="file" name="image" class="form-control rounded-3" required>
+        </div>
+
+        <button class="btn btn-success fw-bold rounded-4 px-4 mt-2">Add Product</button>
+    </form>
+
+</div>
+
+<%- include("partials/footer"); %>

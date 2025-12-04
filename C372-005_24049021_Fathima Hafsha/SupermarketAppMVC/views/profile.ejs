@@ -64,20 +64,29 @@
 
 <script>
     const params = new URLSearchParams(window.location.search);
-    if (params.get("pwChanged") === "1") {
+    const result = params.get("pwChanged");
+
+    if (result) {
         const popup = document.createElement("div");
         popup.style.position = "fixed";
         popup.style.top = "50%";
         popup.style.left = "50%";
         popup.style.transform = "translate(-50%, -50%)";
-        popup.style.background = "#222";
+        popup.style.background = result === "1" ? "#28a745" : "#dc3545";
         popup.style.color = "white";
         popup.style.padding = "35px";
         popup.style.borderRadius = "15px";
         popup.style.textAlign = "center";
         popup.style.boxShadow = "0 4px 25px rgba(0,0,0,0.50)";
         popup.style.width = "320px";
-        popup.innerHTML = `<p>Password updated successfully.</p>`;
+        popup.style.zIndex = "9999";
+
+        if (result === "1") {
+            popup.innerHTML = `<p><strong>✓ Success</strong></p><p>Password updated successfully.</p>`;
+        } else {
+            popup.innerHTML = `<p><strong>✗ Failed</strong></p><p>Password update was not successful. Please try again.</p>`;
+        }
+
         document.body.appendChild(popup);
 
         setTimeout(() => {
