@@ -197,6 +197,9 @@ app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.succe
 app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
 app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);
 
+// ADMIN — View ALL customer orders
+app.get('/admin/orders', checkAuthenticated, ensure2FA, checkAdmin, OrderController.adminList);
+
 // START SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running at http://localhost:" + PORT));

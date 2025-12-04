@@ -51,7 +51,7 @@ const ProductController = {
             });
         }
 
-        // Default (ALL PRODUCTS)
+        // Default
         Product.getAll((err, products) => {
             if (err) return res.status(500).send("Internal Server Error");
 
@@ -60,22 +60,13 @@ const ProductController = {
                 p.lowStock = p.quantity < LOW_STOCK_LIMIT;
             });
 
-            // ADMIN INVENTORY PAGE — now sends flash messages
+            // ADMIN → inventory.ejs (messages come from res.locals.messages)
             if (user && user.role === 'admin') {
-                return res.render("inventory", { 
-                    products, 
-                    user,
-                    messages: req.flash()     // 🔥 REQUIRED FOR SUCCESS POPUPS
-                });
+                return res.render("inventory", { products, user });
             }
 
-            // USER SHOPPING PAGE
-            return res.render("shopping", { 
-                products, 
-                user, 
-                search: "", 
-                category: "" 
-            });
+            // NORMAL USER → shopping.ejs
+            return res.render("shopping", { products, user, search: "", category: "" });
         });
     },
 
@@ -107,7 +98,7 @@ const ProductController = {
         Product.add(product, err => {
             if (err) return res.status(500).send("Failed to add product");
 
-            req.flash("success", "Product added successfully!"); // ✅
+            req.flash("success", "Product added successfully!");
             res.redirect('/inventory');
         });
     },
@@ -127,7 +118,7 @@ const ProductController = {
             if (err) return res.status(500).send("Failed to update product");
             if (result.affectedRows === 0) return res.status(404).send("Product not found");
 
-            req.flash("success", "Product updated successfully!"); // ✅
+            req.flash("success", "Product updated successfully!");
             res.redirect('/inventory');
         });
     },
@@ -139,7 +130,7 @@ const ProductController = {
             if (err) return res.status(500).send("Failed to delete product");
             if (result.affectedRows === 0) return res.status(404).send("Product not found");
 
-            req.flash("success", "Product deleted successfully!"); // ✅
+            req.flash("success", "Product deleted successfully!");
             res.redirect('/inventory');
         });
     }

@@ -18,7 +18,7 @@ const CartController = {
         Product.getById(productId, (err, product) => {
             if (err || !product) {
                 req.flash("error", "Product not found.");
-                return res.redirect("/shop");
+                return res.redirect("/shopping");
             }
 
             // Out of stock
@@ -27,9 +27,10 @@ const CartController = {
                 return res.redirect("/shopping");
             }
 
-            // Clamp quantity
+            // Clamp quantity correctly
             if (quantity > product.quantity) {
                 quantity = product.quantity;
+
                 req.flash(
                     "stockError",
                     `Maximum stock available for ${product.productName} is ${product.quantity}. ` +
@@ -47,7 +48,7 @@ const CartController = {
                     return res.redirect("/shopping");
                 }
 
-                // Reduce stock
+                // Reduce stock ONLY for added amount
                 Product.reduceStock(productId, quantity, (err3) => {
                     if (err3) {
                         console.error("Stock update error:", err3);
@@ -80,9 +81,6 @@ const CartController = {
 
     // ------------------------------------------------
     // DELETE CART ITEM (restore stock)
-    // ------------------------------------------------
-    // ------------------------------------------------
-    // DELETE CART ITEM (restore full stock)
     // ------------------------------------------------
     delete: (req, res) => {
         const cartId = req.params.id;

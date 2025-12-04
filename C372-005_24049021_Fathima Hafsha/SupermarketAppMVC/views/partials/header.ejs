@@ -35,19 +35,33 @@
             <div id="navbarNav" class="collapse navbar-collapse">
                 <!-- LEFT NAV -->
                 <ul class="navbar-nav me-auto">
+
                     <% if (user && user.role === 'admin') { %>
+
+                        <!-- INVENTORY -->
                         <li class="nav-item">
                             <a class="nav-link fs-5" href="/inventory">
                                 <i class="bi bi-box-seam me-1"></i> Inventory
                             </a>
                         </li>
 
+                        <!-- ADD PRODUCT -->
                         <li class="nav-item">
                             <a class="nav-link fs-5" href="/addproduct">
                                 <i class="bi bi-plus-circle me-1"></i> Add Product
                             </a>
                         </li>
+
+                        <!-- STEP 4: ADMIN VIEW ALL ORDERS -->
+                        <li class="nav-item">
+                            <a class="nav-link fs-5" href="/admin/orders">
+                                <i class="bi bi-clipboard-data me-1"></i> All Orders
+                            </a>
+                        </li>
+
                     <% } else { %>
+
+                        <!-- SHOP PAGE -->
                         <li class="nav-item">
                             <a class="nav-link fs-5" href="/shopping">
                                 <i class="bi bi-shop-window me-1"></i> Shop
@@ -55,6 +69,8 @@
                         </li>
 
                         <% if (user && user.role === 'user') { %>
+
+                            <!-- CART -->
                             <li class="nav-item">
                                 <a class="nav-link fs-5 position-relative" href="/cart">
                                     <i class="bi bi-cart-fill me-1"></i> Cart
@@ -64,18 +80,21 @@
                                 </a>
                             </li>
 
+                            <!-- USER ORDERS -->
                             <li class="nav-item">
                                 <a class="nav-link fs-5" href="/orders">
                                     <i class="bi bi-receipt-cutoff me-1"></i> My Orders
                                 </a>
                             </li>
                         <% } %>
+
                     <% } %>
                 </ul>
 
                 <!-- RIGHT NAV -->
                 <ul class="navbar-nav">
                     <% if (user) { %>
+
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center fs-5"
                                href="#" role="button" data-bs-toggle="dropdown">
@@ -84,6 +103,7 @@
                             </a>
 
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+
                                 <li>
                                     <a class="dropdown-item" href="/profile">
                                         <i class="bi bi-person-lines-fill me-2"></i> My Profile
@@ -113,9 +133,12 @@
                                         <i class="bi bi-box-arrow-right me-2"></i> Logout
                                     </a>
                                 </li>
+
                             </ul>
                         </li>
+
                     <% } else { %>
+
                         <li class="nav-item me-2">
                             <a class="btn btn-outline-light btn-lg" href="/register">Register</a>
                         </li>
@@ -123,6 +146,7 @@
                         <li class="nav-item">
                             <a class="btn btn-light btn-lg" href="/login">Login</a>
                         </li>
+
                     <% } %>
                 </ul>
             </div>

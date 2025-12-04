@@ -1,0 +1,43 @@
+<%- include("partials/header") %>
+
+<div class="container mt-4">
+
+    <h2 class="fw-bold mb-3">All Customer Orders</h2>
+
+    <div class="card p-3 shadow-sm rounded-4">
+
+        <table class="table table-bordered table-striped align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Email</th>
+                    <th>Total ($)</th>
+                    <th>Date</th>
+                    <th>Invoice</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <% orders.forEach(o => { %>
+                    <tr>
+                        <td>#<%= o.order_id %></td>
+                        <td><%= o.customer_name %></td>
+                        <td><%= o.email %></td>
+                        <td>$<%= Number(o.total_amount).toFixed(2) %></td>
+                        <td><%= new Date(o.order_date).toLocaleString() %></td>
+                        <td>
+                            <a href="/invoice/<%= o.order_id %>" class="btn btn-primary btn-sm rounded-3">
+                                View Invoice
+                            </a>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+<%- include("partials/footer") %>

@@ -1,86 +1,111 @@
 <%- include("partials/header"); %>
 
-<div class="container mt-4">
+    <div class="container mt-4">
 
-    <h2 class="fw-bold mb-4">Your Cart</h2>
+        <h2 class="fw-bold mb-4">Your Cart</h2>
 
-    <% if (cart.length === 0) { %>
+        <% if (cart.length===0) { %>
 
-        <div class="alert alert-info text-center">
-            Your cart is empty.
-            <br><br>
-            <a href="/shopping" class="btn btn-primary">Continue Shopping</a>
-        </div>
+            <div class="alert alert-info text-center">
+                Your cart is empty.
+                <br><br>
+                <a href="/shopping" class="btn btn-primary">Continue Shopping</a>
+            </div>
 
-    <% } else { %>
+            <% } else { %>
 
-        <% let total = 0; %>
+                <% let total=0; %>
 
-        <div class="row">
-            <% cart.forEach(item => { 
-                const lineTotal = Number(item.price) * item.quantity;
-                total += lineTotal;
-            %>
-                <div class="col-md-4 mb-4">
-                    <div class="card shadow-sm h-100">
+                    <div class="row">
+                        <% cart.forEach(item=> {
+                            const lineTotal = Number(item.price) * item.quantity;
+                            total += lineTotal;
+                            %>
 
-                        <img src="/images/<%= item.image %>"
-                            class="card-img-top"
-                            style="height: 200px; object-fit: cover;">
+                            <div class="col-md-4 mb-4">
+                                <div class="card shadow-sm h-100">
 
-                        <div class="card-body">
+                                    <img src="/images/<%= item.image %>" class="card-img-top"
+                                        style="height: 200px; object-fit: cover;">
 
-                            <h5 class="fw-bold"><%= item.productName %></h5>
+                                    <div class="card-body">
 
-                            <!-- UPDATE QUANTITY -->
-                            <form action="/cart/update/<%= item.cart_id %>" method="POST" class="d-flex mb-3">
-                                <input 
-                                    type="number"
-                                    name="quantity"
-                                    min="1"
-                                    value="<%= item.quantity %>"
-                                    class="form-control me-2"
-                                >
-                                <button class="btn btn-warning fw-bold">Update</button>
-                            </form>
+                                        <h5 class="fw-bold">
+                                            <%= item.productName %>
+                                        </h5>
 
-                            <p class="mb-2">
-                                <strong>Price:</strong> $<%= Number(item.price).toFixed(2) %><br>
-                                <strong>Line Total:</strong> $<%= lineTotal.toFixed(2) %>
-                            </p>
+                                        <!-- UPDATE -->
+                                        <form action="/cart/update/<%= item.cart_id %>" method="POST"
+                                            class="d-flex mb-3">
+                                            <input type="number" name="quantity" min="1" value="<%= item.quantity %>"
+                                                class="form-control me-2">
+                                            <button class="btn btn-warning fw-bold">Update</button>
+                                        </form>
 
-                            <!-- REMOVE ITEM -->
-                            <form action="/cart/delete/<%= item.cart_id %>" method="POST">
-                                <button class="btn btn-danger w-100">Remove</button>
-                            </form>
+                                        <p class="mb-2">
+                                            <strong>Price:</strong> $<%= Number(item.price).toFixed(2) %><br>
+                                                <strong>Line Total:</strong> $<%= lineTotal.toFixed(2) %>
+                                        </p>
 
+                                        <!-- REMOVE -->
+                                        <form action="/cart/delete/<%= item.cart_id %>" method="POST">
+                                            <button class="btn btn-danger w-100">Remove</button>
+                                        </form>
+
+                                    </div>
+                                </div>
+                            </div>
+
+                            <% }) %>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+
+                        <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
+                            Continue Shopping
+                        </a>
+
+                        <div class="text-end">
+                            <h4 class="fw-bold mb-3">
+                                Total: $<%= total.toFixed(2) %>
+                            </h4>
+
+                            <a href="/checkout" class="btn btn-success btn-lg fw-bold">
+                                Proceed to Checkout
+                            </a>
                         </div>
 
                     </div>
-                </div>
-            <% }) %>
-        </div>
 
-        <div class="d-flex justify-content-between mt-4">
+                    <% } %>
 
-            <a href="/shopping" class="btn btn-secondary btn-lg fw-bold">
-                Continue Shopping
-            </a>
+    </div>
 
-            <div class="text-end">
-                <h4 class="fw-bold mb-3">
-                    Total: $<%= total.toFixed(2) %>
-                </h4>
 
-                <a href="/checkout" class="btn btn-success btn-lg fw-bold">
-                    Proceed to Checkout
-                </a>
-            </div>
+    <!-- ======================================================= -->
+    <!-- REAL FIX: CREATE JS VARIABLES FIRST (NO SYNTAX ERRORS) -->
+    <!-- ======================================================= -->
 
-        </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <% } %>
+    <script>
+        // Safely inject flash messages as JS values
+        const successMsg = <%- JSON.stringify((messages && messages.success && messages.success[0]) || null) %>;
+        const stockMsg = <%- JSON.stringify((messages && messages.stockError && messages.stockError[0]) || null) %>;
+        const errorMsg = <%- JSON.stringify((messages && messages.error && messages.error[0]) || null) %>;
 
-</div>
+        if (successMsg) {
+            Swal.fire({ icon: "success", title: "Success", text: successMsg, confirmButtonColor: "#28a745" });
+        }
 
-<%- include("partials/footer"); %>
+        if (stockMsg) {
+            Swal.fire({ icon: "warning", title: "Stock Issue", text: stockMsg, confirmButtonColor: "#d33" });
+        }
+
+        if (errorMsg) {
+            Swal.fire({ icon: "error", title: "Error", text: errorMsg, confirmButtonColor: "#d33" });
+        }
+    </script>
+
+
+    <%- include("partials/footer"); %>

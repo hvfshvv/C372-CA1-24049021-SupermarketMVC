@@ -1,8 +1,9 @@
+// models/Order.js
 const db = require("../db");
 
 const Order = {
 
-    // Create an order
+    // Create a new order
     create(userId, totalAmount, callback) {
         const sql = `
             INSERT INTO orders (user_id, total_amount)
@@ -14,7 +15,7 @@ const Order = {
         });
     },
 
-    // Add item to order
+    // Add an item into order_items
     addItem(orderId, productId, name, price, qty, callback) {
         const sql = `
             INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
@@ -23,7 +24,7 @@ const Order = {
         db.query(sql, [orderId, productId, name, price, qty], callback);
     },
 
-    // Get a single order
+    // Get one order by ID
     getById(orderId, callback) {
         db.query(
             `SELECT * FROM orders WHERE id = ?`,
@@ -35,20 +36,22 @@ const Order = {
         );
     },
 
-    // Get all orders by user
+    // Get all orders for a specific user
     getByUser(userId, callback) {
-        db.query(
-            `SELECT * FROM orders WHERE user_id = ? ORDER BY order_date DESC`,
-            [userId],
-            (err, results) => {
-                if (err) return callback(err, null);
-                return callback(null, results);
-            }
-        );
+        const sql = `
+            SELECT * 
+            FROM orders 
+            WHERE user_id = ? 
+            ORDER BY order_date DESC
+        `;
+
+        db.query(sql, [userId], (err, results) => {
+            if (err) return callback(err);
+            callback(null, results);
+        });
     },
 
-
-    // Get items from an order
+    // Get all items inside one order
     getItems(orderId, callback) {
         db.query(
             `SELECT * FROM order_items WHERE order_id = ?`,
@@ -60,22 +63,38 @@ const Order = {
         );
     },
 
-    // Get order + items
+    // Get order + items together
     getOrderWithItems(orderId, callback) {
         const orderSql = `SELECT * FROM orders WHERE id = ?`;
         const itemsSql = `SELECT * FROM order_items WHERE order_id = ?`;
 
-        db.query(orderSql, [orderId], (err, orderResults) => {
+        db.query(orderSql, [orderId], (err, orderRows) => {
             if (err) return callback(err);
 
-            const order = orderResults[0];
+            const order = orderRows[0];
             if (!order) return callback(null, null, []);
 
-            db.query(itemsSql, [orderId], (err, itemResults) => {
+            db.query(itemsSql, [orderId], (err, itemRows) => {
                 if (err) return callback(err);
-                callback(null, order, itemResults);
+                callback(null, order, itemRows);
             });
         });
+    },
+
+    // ADMIN: view every order from all users
+    getAllOrders(callback) {
+        const sql = `
+            SELECT 
+                orders.id AS order_id,
+                orders.total_amount,
+                orders.order_date,
+                users.username AS customer_name,
+                users.email
+            FROM orders
+            JOIN users ON users.id = orders.user_id
+            ORDER BY orders.order_date DESC
+        `;
+        db.query(sql, callback);
     }
 };
 
