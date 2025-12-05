@@ -22,45 +22,68 @@ const CartController = {
             }
 
             // Out of stock
-            if (product.quantity <= 0) {
+            const currentStock = Number(product.quantity);
+            if (currentStock <= 0) {
                 req.flash("stockError", `${product.productName} is out of stock.`);
                 return res.redirect("/shopping");
             }
 
-            // Clamp quantity correctly
-            if (quantity > product.quantity) {
-                quantity = product.quantity;
-
-                req.flash(
-                    "stockError",
-                    `Maximum stock available for ${product.productName} is ${product.quantity}. ` +
-                    `Your cart quantity has been set to ${product.quantity}.`
-                );
-            } else {
-                req.flash("success", "Item added to cart.");
-            }
-
-            // Add to cart
-            Cart.addItem(userId, productId, quantity, (err2) => {
+            // Get cart to check existing quantity
+            Cart.getCart(userId, (err2, cartItems) => {
                 if (err2) {
-                    console.error("Cart.addItem error:", err2);
-                    req.flash("error", "Unable to add to cart.");
+                    req.flash("error", "Failed to load cart");
                     return res.redirect("/shopping");
                 }
 
-                // Reduce stock ONLY for added amount
-                Product.reduceStock(productId, quantity, (err3) => {
+                const existingItem = cartItems.find(i => Number(i.product_id) === Number(productId));
+                const inCartNow = existingItem ? Number(existingItem.quantity) : 0;
+
+                // Maximum allowed = stock + what user already has
+                let maxQty = currentStock + inCartNow;
+
+                // Clamp quantity
+                if (quantity > maxQty) {
+                    quantity = maxQty;
+                    req.flash(
+                        "stockError",
+                        `Maximum stock available for ${product.productName} is ${maxQty}. ` +
+                        `Your cart quantity has been set to ${maxQty}.`
+                    );
+                } else {
+                    req.flash("success", "Item added to cart.");
+                }
+
+                // Amount to add = desired total - current cart amount
+                const amountToAdd = quantity - inCartNow;
+
+                // If no change
+                if (amountToAdd <= 0) {
+                    return res.redirect("/cart");
+                }
+
+                // Add or update cart
+                Cart.addItem(userId, productId, amountToAdd, (err3) => {
                     if (err3) {
-                        console.error("Stock update error:", err3);
-                        req.flash("error", "Cart added but stock update failed.");
-                        return res.redirect("/cart");
+                        console.error("Cart.addItem error:", err3);
+                        req.flash("error", "Unable to add to cart.");
+                        return res.redirect("/shopping");
                     }
 
-                    return res.redirect("/cart");
+                    // Reduce stock by actual added amount
+                    Product.reduceStock(productId, amountToAdd, (err4) => {
+                        if (err4) {
+                            console.error("Stock update error:", err4);
+                            req.flash("error", "Cart added but stock update failed.");
+                            return res.redirect("/cart");
+                        }
+
+                        return res.redirect("/cart");
+                    });
                 });
             });
         });
     },
+
 
     // ------------------------------------------------
     // VIEW CART

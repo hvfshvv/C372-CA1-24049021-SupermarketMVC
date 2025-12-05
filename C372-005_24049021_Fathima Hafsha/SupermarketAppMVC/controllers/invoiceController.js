@@ -18,7 +18,7 @@ const InvoiceController = {
                     return res.status(404).send("Order not found");
                 }
 
-                // Security: only owner or admin
+                // Security: only admin
                 if (order.user_id !== user.id && user.role !== "admin") {
                     return res.status(403).send("Access denied");
                 }
