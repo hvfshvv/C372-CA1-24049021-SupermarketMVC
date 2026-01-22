@@ -235,7 +235,12 @@ const CartController = {
             let total = 0;
             cart.forEach(i => total += Number(i.price) * i.quantity);
 
-            res.render("checkout", { cart, total });
+            res.render("checkout", {
+                cart,
+                total,
+                paypalClientId: process.env.PAYPAL_CLIENT_ID,
+                currency: process.env.PAYPAL_CURRENCY || "SGD"
+            });
         });
     },
 

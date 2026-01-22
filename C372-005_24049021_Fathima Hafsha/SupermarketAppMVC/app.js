@@ -16,7 +16,12 @@ const UserController = require('./controllers/userController');
 const InvoiceController = require('./controllers/invoiceController.js');
 const OrderController = require('./controllers/orderController');
 const Product = require('./models/Product');
+const paypal = require('./services/paypal');
 const Cart = require('./models/Cart');
+const Order = require('./models/Order');
+const Transaction = require("./models/Transaction");
+
+
 
 
 const imagesDir = path.join(__dirname, 'public', 'images');
@@ -37,6 +42,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());  
 app.use(methodOverride('_method'));
 
 app.use((req, res, next) => {
@@ -192,6 +198,85 @@ app.post('/cart/update/:id', checkAuthenticated, ensure2FA, CartController.updat
 app.get('/checkout', checkAuthenticated, ensure2FA, CartController.checkoutPage);
 app.post('/checkout/confirm', checkAuthenticated, ensure2FA, CartController.confirmOrder);
 app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.successPage);
+
+// PAYPAL (CA2) 
+app.post('/api/paypal/capture-order', checkAuthenticated, ensure2FA, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const { orderID } = req.body;
+
+        // Capture PayPal payment
+        const capture = await paypal.captureOrder(orderID);
+
+        if (capture.status !== "COMPLETED") {
+            return res.status(400).json({ error: 'Payment not completed', details: capture });
+        }
+
+        // Get cart items
+        Cart.getCart(userId, (err, cart) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!cart.length) return res.status(400).json({ error: 'Cart empty' });
+
+            const total = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+
+            // Create order
+            Order.create(userId, total, (err2, orderId) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                // Save PayPal transaction
+                const payerId = capture?.payer?.payer_id || "UNKNOWN";
+                const payerEmail = capture?.payer?.email_address || "UNKNOWN";
+
+                const cap = capture?.purchase_units?.[0]?.payments?.captures?.[0];
+                const amount = cap?.amount?.value || total.toFixed(2);
+                const currency = cap?.amount?.currency_code || "SGD";
+                const status = cap?.status || capture?.status || "UNKNOWN";
+                const time = cap?.create_time ? new Date(cap.create_time) : new Date();
+
+                Transaction.create(
+                    {
+                        orderId: String(orderId),
+                        payerId,
+                        payerEmail,
+                        amount,
+                        currency,
+                        status,
+                        time
+                    },
+                    (txnErr) => {
+                        if (txnErr) {
+                            console.error("Transaction insert error:", txnErr);
+                        }
+                    }
+                );
+
+                // Add order items then clear cart
+                const addItems = (idx) => {
+                    if (idx >= cart.length) {
+                        return Cart.clearCart(userId, () =>
+                            res.json({ success: true, orderId })
+                        );
+                    }
+
+                    const item = cart[idx];
+                    Order.addItem(
+                        orderId,
+                        item.product_id,
+                        item.productName,
+                        item.price,
+                        item.quantity,
+                        () => addItems(idx + 1)
+                    );
+                };
+
+                addItems(0);
+            });
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ORDERS + INVOICE
 app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
