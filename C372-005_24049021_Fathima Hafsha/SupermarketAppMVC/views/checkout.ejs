@@ -40,47 +40,54 @@
                         src="https://www.paypal.com/sdk/js?client-id=AdfQO3UbfWTbVRPz8vlfrFo5tLrD0sYxyb2F4dk_G1ShnvyBenNoouJWmUBdkniuXhPHpkzjvg7eywnf&currency=SGD"></script>
 
                     <script>
-                        paypal.Buttons({
+                    paypal.Buttons({
 
-                            // call backend create-order with amount
-                            createOrder: function () {
-                                return fetch('/api/paypal/create-order', {
-                                    method: 'post',
-                                    headers: { 'content-type': 'application/json' },
-                                    body: JSON.stringify({ amount: "<%= total.toFixed(2) %>" })
-                                })
-                                    .then(res => res.json())
-                                    .then(data => data.id);
-                            },
+                    // call backend create-order with amount
+                    createOrder: function () {
+                        return fetch('/api/paypal/create-order', {
+                        method: 'post',
+                        headers: {
+                            'content-type': 'application/json',
+                            'accept': 'application/json'
+                        },
+                        body: JSON.stringify({ amount: "<%= total.toFixed(2) %>" })
+                        })
+                        .then(res => res.json())
+                        .then(data => data.id);
+                        },
 
-                            // call backend capture-order with PayPal orderID
-                            onApprove: function (data) {
-                                return fetch('/api/paypal/capture-order', {
-                                    method: 'post',
-                                    headers: { 'content-type': 'application/json' },
-                                    body: JSON.stringify({ orderID: data.orderID })
-                                })
-                                    .then(res => res.json())
-                                    .then(result => {
-                                        if (result.success) {
-                                            window.location.href = "/checkout/success?orderId=" + result.orderId;
-                                        } else {
-                                            alert(result.error || "Payment not completed.");
-                                        }
-                                    });
-                            },
+                        // call backend capture-order with PayPal orderID
+                        onApprove: function (data) {
+                        return fetch('/api/paypal/capture-order', {
+                        method: 'post',
+                        headers: {
+                            'content-type': 'application/json',
+                            'accept': 'application/json'
+                        },
+                        body: JSON.stringify({ orderID: data.orderID })
+                        })
+                        .then(res => res.json())
+                        .then(result => {
+                        
+                        if (result.success) {
+                        window.location.href = "/checkout/success?orderId=" + result.orderId;
+                        } else {
+                        alert(result.error || "Payment not completed.");
+                }
+            });
+        },
 
-                            onCancel: function () {
-                                alert("Payment cancelled.");
-                            },
+    onCancel: function () {
+      alert("Payment cancelled.");
+    },
 
-                            onError: function (err) {
-                                console.error(err);
-                                alert("PayPal error: " + err.message);
-                            }
+    onError: function (err) {
+      console.error(err);
+      alert("PayPal error: " + err.message);
+    }
 
-                        }).render('#paypal-button-container');
-                    </script>
+  }).render('#paypal-button-container');
+</script>
 
         </div>
     </div>

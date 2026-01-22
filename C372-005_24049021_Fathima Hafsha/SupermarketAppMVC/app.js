@@ -199,7 +199,31 @@ app.get('/checkout', checkAuthenticated, ensure2FA, CartController.checkoutPage)
 app.post('/checkout/confirm', checkAuthenticated, ensure2FA, CartController.confirmOrder);
 app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.successPage);
 
-// PAYPAL (CA2) 
+
+// PAYPAL (CA2) - CREATE ORDER
+app.post('/api/paypal/create-order', checkAuthenticated, ensure2FA, async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    // Important: validate amount exists
+    if (!amount) {
+      return res.status(400).json({ error: "Amount is required" });
+    }
+
+    const order = await paypal.createOrder(amount);
+
+    if (order && order.id) {
+      return res.json({ id: order.id });
+    } else {
+      return res.status(500).json({ error: "Failed to create PayPal order", details: order });
+    }
+  } catch (err) {
+    console.error("create-order error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PAYPAL (CA2) - CAPTURE ORDER
 app.post('/api/paypal/capture-order', checkAuthenticated, ensure2FA, async (req, res) => {
     try {
         const userId = req.session.user.id;
