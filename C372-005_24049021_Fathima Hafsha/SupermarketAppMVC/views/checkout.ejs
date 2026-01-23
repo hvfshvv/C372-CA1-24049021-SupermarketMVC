@@ -30,6 +30,18 @@
 
                     <hr class="my-4">
 
+                    <!-- NETS QR PAYMENT -->
+                    <h5 class="fw-bold mb-3">Pay with NETS QR </h5>
+                    <div class="text-center mb-4">
+                        <button id="nets-generate" class="btn btn-outline-primary mb-2">
+                            Generate NETS QR
+                        </button>
+                        <div id="nets-status" class="text-muted small mb-2"></div>
+                        <div id="nets-qr-container" class="d-flex justify-content-center"></div>
+                    </div>
+
+                    <hr class="my-4">
+
                     <!-- PAYPAL PAYMENT -->
                     <h5 class="fw-bold mb-3">Pay with PayPal</h5>
 
@@ -37,7 +49,94 @@
 
                     <!-- PayPal SDK (Class style: uses env) -->
                     <script
-                        src="https://www.paypal.com/sdk/js?client-id=AdfQO3UbfWTbVRPz8vlfrFo5tLrD0sYxyb2F4dk_G1ShnvyBenNoouJWmUBdkniuXhPHpkzjvg7eywnf&currency=SGD"></script>
+                        src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=<%= currency %>"></script>
+
+                    <script>
+                        (function () {
+                            const netsBtn = document.getElementById("nets-generate");
+                            const netsStatus = document.getElementById("nets-status");
+                            const netsContainer = document.getElementById("nets-qr-container");
+                            let pollHandle = null;
+
+                            function setStatus(message, isError = false) {
+                                netsStatus.textContent = message;
+                                netsStatus.classList.toggle("text-danger", !!isError);
+                                netsStatus.classList.toggle("text-muted", !isError);
+                            }
+
+                            async function startPoll(txnRef) {
+                                let attempts = 0;
+                                pollHandle = setInterval(async () => {
+                                    attempts++;
+                                    try {
+                                        const res = await fetch(`/api/nets/query?txn_retrieval_ref=${encodeURIComponent(txnRef)}`);
+                                        const data = await res.json();
+
+                                        if (data.status === "paid") {
+                                            clearInterval(pollHandle);
+                                            window.location.href = "/checkout/success?orderId=" + data.orderId;
+                                            return;
+                                        }
+
+                                        if (data.status === "failed") {
+                                            clearInterval(pollHandle);
+                                            setStatus(data.message || "NETS payment failed.", true);
+                                            netsBtn.disabled = false;
+                                            return;
+                                        }
+
+                                        if (attempts >= 20) {
+                                            clearInterval(pollHandle);
+                                            setStatus("Payment timed out. Please try again.", true);
+                                            netsBtn.disabled = false;
+                                        }
+                                    } catch (err) {
+                                        console.error("NETS poll error:", err);
+                                        clearInterval(pollHandle);
+                                        setStatus("Error checking payment status.", true);
+                                        netsBtn.disabled = false;
+                                    }
+                                }, 3000);
+                            }
+
+                            netsBtn?.addEventListener("click", async () => {
+                                if (pollHandle) clearInterval(pollHandle);
+
+                                netsBtn.disabled = true;
+                                netsContainer.innerHTML = "";
+                                setStatus("Requesting NETS QR...");
+
+                                try {
+                                    const res = await fetch("/api/nets/qr-request", {
+                                        method: "POST",
+                                        headers: {
+                                            "accept": "application/json"
+                                        }
+                                    });
+
+                                    const data = await res.json();
+
+                                    if (!res.ok || !data.qrDataUrl) {
+                                        throw new Error(data.error || "Unable to create NETS QR.");
+                                    }
+
+                                    const img = document.createElement("img");
+                                    img.src = data.qrDataUrl;
+                                    img.alt = "NETS QR Code";
+                                    img.className = "img-fluid border p-2 bg-white";
+                                    img.style.maxWidth = "280px";
+                                    netsContainer.appendChild(img);
+
+                                    setStatus("Scan the QR with the NETS app to pay.");
+                                    startPoll(data.txn_retrieval_ref);
+                                } catch (err) {
+                                    console.error("NETS request error:", err);
+                                    setStatus(err.message, true);
+                                    netsBtn.disabled = false;
+                                }
+                            });
+                        })();
+                    </script>
 
                     <script>
                     paypal.Buttons({

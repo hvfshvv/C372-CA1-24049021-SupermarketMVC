@@ -17,6 +17,7 @@ const InvoiceController = require('./controllers/invoiceController.js');
 const OrderController = require('./controllers/orderController');
 const Product = require('./models/Product');
 const paypal = require('./services/paypal');
+const nets = require('./services/nets');
 const Cart = require('./models/Cart');
 const Order = require('./models/Order');
 const Transaction = require("./models/Transaction");
@@ -103,6 +104,51 @@ const checkAdmin = (req, res, next) => {
     req.flash("error", "Access denied.");
     res.redirect("/shopping");
 };
+
+// Helper: build order from cart after successful payment
+async function createOrderFromCart(userId) {
+    const cart = await new Promise((resolve, reject) => {
+        Cart.getCart(userId, (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows || []);
+        });
+    });
+
+    if (!cart.length) {
+        throw new Error("Cart empty");
+    }
+
+    const total = cart.reduce(
+        (sum, item) => sum + Number(item.price) * Number(item.quantity),
+        0
+    );
+
+    const orderId = await new Promise((resolve, reject) => {
+        Order.create(userId, total, (err, id) => {
+            if (err) return reject(err);
+            resolve(id);
+        });
+    });
+
+    for (const item of cart) {
+        await new Promise((resolve, reject) => {
+            Order.addItem(
+                orderId,
+                item.product_id,
+                item.productName,
+                item.price,
+                item.quantity,
+                (err) => (err ? reject(err) : resolve())
+            );
+        });
+    }
+
+    await new Promise((resolve, reject) => {
+        Cart.clearCart(userId, (err) => (err ? reject(err) : resolve()));
+    });
+
+    return { orderId, cart, total };
+}
 
 // ----------------------------
 // HOME PAGE (products included)
@@ -200,6 +246,131 @@ app.post('/checkout/confirm', checkAuthenticated, ensure2FA, CartController.conf
 app.get('/checkout/success', checkAuthenticated, ensure2FA, CartController.successPage);
 
 
+// NETS QR (Sandbox) - create QR
+app.post('/api/nets/qr-request', checkAuthenticated, ensure2FA, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+
+        const cart = await new Promise((resolve, reject) => {
+            Cart.getCart(userId, (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows || []);
+            });
+        });
+
+        if (!cart.length) {
+            return res.status(400).json({ error: "Cart is empty" });
+        }
+
+        const total = cart.reduce(
+            (sum, item) => sum + Number(item.price) * Number(item.quantity),
+            0
+        );
+
+        const txnId = `sandbox_nets_${userId}_${Date.now()}`;
+        const qr = await nets.requestQr({
+            txnId,
+            amount: Number(total.toFixed(2)),
+            notifyMobile: 0
+        });
+
+        req.session.netsPending = {
+            txnId,
+            txnRetrievalRef: qr.txnRetrievalRef,
+            amount: total
+        };
+
+        return res.json({
+            qrDataUrl: qr.qrDataUrl,
+            txn_retrieval_ref: qr.txnRetrievalRef
+        });
+    } catch (err) {
+        console.error("NETS qr-request error:", err);
+        return res
+            .status(500)
+            .json({ error: err.message || "Failed to create NETS QR" });
+    }
+});
+
+// NETS QR (Sandbox) - poll status
+app.get('/api/nets/query', checkAuthenticated, ensure2FA, async (req, res) => {
+    const { txn_retrieval_ref } = req.query;
+
+    if (!txn_retrieval_ref) {
+        return res.status(400).json({ error: "txn_retrieval_ref is required" });
+    }
+
+    try {
+        const statusData = await nets.queryTransaction(txn_retrieval_ref);
+        const txnStatus = Number(statusData.txn_status);
+        const responseCode = statusData.response_code;
+
+        // Success
+        if (txnStatus === 2) {
+            const pending = req.session.netsPending;
+
+            if (!pending || pending.txnRetrievalRef !== txn_retrieval_ref) {
+                return res
+                    .status(400)
+                    .json({ error: "No pending NETS session for this transaction" });
+            }
+
+            if (pending.completed && pending.orderId) {
+                return res.json({ status: "paid", orderId: pending.orderId });
+            }
+
+            const { orderId, total } = await createOrderFromCart(req.session.user.id);
+
+            req.session.netsPending = {
+                ...pending,
+                completed: true,
+                orderId
+            };
+
+            Transaction.create(
+                {
+                    orderId: String(orderId),
+                    payerId: pending.txnId,
+                    payerEmail: "NETS",
+                    amount: total,
+                    currency: "SGD",
+                    status: `NETS_${txnStatus}`,
+                    time: new Date()
+                },
+                (txnErr) => {
+                    if (txnErr) {
+                        console.error("Transaction insert error:", txnErr);
+                    }
+                }
+            );
+
+            return res.json({ status: "paid", orderId });
+        }
+
+        // Explicit failure (assume status 3 = failure/cancel)
+        if (txnStatus === 3) {
+            return res.json({
+                status: "failed",
+                message: "NETS payment failed or was cancelled",
+                response_code: responseCode
+            });
+        }
+
+        // Pending / others
+        return res.json({
+            status: "pending",
+            txn_status: txnStatus,
+            response_code: responseCode
+        });
+    } catch (err) {
+        console.error("NETS query error:", err);
+        return res
+            .status(500)
+            .json({ error: err.message || "NETS query failed" });
+    }
+});
+
+
 // PAYPAL (CA2) - CREATE ORDER
 app.post('/api/paypal/create-order', checkAuthenticated, ensure2FA, async (req, res) => {
   try {
@@ -236,67 +407,41 @@ app.post('/api/paypal/capture-order', checkAuthenticated, ensure2FA, async (req,
             return res.status(400).json({ error: 'Payment not completed', details: capture });
         }
 
-        // Get cart items
-        Cart.getCart(userId, (err, cart) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!cart.length) return res.status(400).json({ error: 'Cart empty' });
+        let orderMeta;
+        try {
+            orderMeta = await createOrderFromCart(userId);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
 
-            const total = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        // Save PayPal transaction
+        const payerId = capture?.payer?.payer_id || "UNKNOWN";
+        const payerEmail = capture?.payer?.email_address || "UNKNOWN";
 
-            // Create order
-            Order.create(userId, total, (err2, orderId) => {
-                if (err2) return res.status(500).json({ error: err2.message });
+        const cap = capture?.purchase_units?.[0]?.payments?.captures?.[0];
+        const amount = cap?.amount?.value || orderMeta.total.toFixed(2);
+        const currency = cap?.amount?.currency_code || "SGD";
+        const status = cap?.status || capture?.status || "UNKNOWN";
+        const time = cap?.create_time ? new Date(cap.create_time) : new Date();
 
-                // Save PayPal transaction
-                const payerId = capture?.payer?.payer_id || "UNKNOWN";
-                const payerEmail = capture?.payer?.email_address || "UNKNOWN";
+        Transaction.create(
+            {
+                orderId: String(orderMeta.orderId),
+                payerId,
+                payerEmail,
+                amount,
+                currency,
+                status,
+                time
+            },
+            (txnErr) => {
+                if (txnErr) {
+                    console.error("Transaction insert error:", txnErr);
+                }
+            }
+        );
 
-                const cap = capture?.purchase_units?.[0]?.payments?.captures?.[0];
-                const amount = cap?.amount?.value || total.toFixed(2);
-                const currency = cap?.amount?.currency_code || "SGD";
-                const status = cap?.status || capture?.status || "UNKNOWN";
-                const time = cap?.create_time ? new Date(cap.create_time) : new Date();
-
-                Transaction.create(
-                    {
-                        orderId: String(orderId),
-                        payerId,
-                        payerEmail,
-                        amount,
-                        currency,
-                        status,
-                        time
-                    },
-                    (txnErr) => {
-                        if (txnErr) {
-                            console.error("Transaction insert error:", txnErr);
-                        }
-                    }
-                );
-
-                // Add order items then clear cart
-                const addItems = (idx) => {
-                    if (idx >= cart.length) {
-                        return Cart.clearCart(userId, () =>
-                            res.json({ success: true, orderId })
-                        );
-                    }
-
-                    const item = cart[idx];
-                    Order.addItem(
-                        orderId,
-                        item.product_id,
-                        item.productName,
-                        item.price,
-                        item.quantity,
-                        () => addItems(idx + 1)
-                    );
-                };
-
-                addItems(0);
-            });
-        });
-
+        return res.json({ success: true, orderId: orderMeta.orderId });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

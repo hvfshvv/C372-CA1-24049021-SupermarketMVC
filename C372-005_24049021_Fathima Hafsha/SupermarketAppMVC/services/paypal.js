@@ -14,7 +14,17 @@ async function getAccessToken() {
         },
         body: 'grant_type=client_credentials'
     });
-    const data = await response.json();
+    let data;
+    try {
+        data = await response.json();
+    } catch (err) {
+        const text = await response.text();
+        console.error("PayPal token non-JSON response:", text);
+        throw new Error("PayPal token request returned non-JSON response");
+    }
+    if (!response.ok) {
+        throw new Error(data.error_description || data.error || "Failed to get PayPal token");
+    }
     return data.access_token;
 }
 
@@ -36,7 +46,19 @@ async function createOrder(amount) {
             }]
         })
     });
-    return await response.json();
+    let data;
+    try {
+        data = await response.json();
+    } catch (err) {
+        const text = await response.text();
+        console.error("PayPal create order non-JSON response:", text);
+        throw new Error("PayPal create order returned non-JSON response");
+    }
+    if (!response.ok) {
+        console.error("PayPal create order failed:", data);
+        throw new Error(data.message || "Failed to create PayPal order");
+    }
+    return data;
 }
 
 async function captureOrder(orderId) {
@@ -48,8 +70,18 @@ async function captureOrder(orderId) {
             'Authorization': `Bearer ${accessToken}`
         }
     });
-    const data = await response.json();
+    let data;
+    try {
+        data = await response.json();
+    } catch (err) {
+        const text = await response.text();
+        console.error("PayPal capture non-JSON response:", text);
+        throw new Error("PayPal capture returned non-JSON response");
+    }
     console.log('PayPal captureOrder response:', data);
+    if (!response.ok) {
+        throw new Error(data.message || "Failed to capture PayPal order");
+    }
     return data;
 }
 
