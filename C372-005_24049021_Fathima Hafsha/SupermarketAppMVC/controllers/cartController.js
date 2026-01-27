@@ -239,7 +239,8 @@ const CartController = {
                 cart,
                 total,
                 paypalClientId: process.env.PAYPAL_CLIENT_ID,
-                currency: process.env.PAYPAL_CURRENCY || "SGD"
+                currency: process.env.PAYPAL_CURRENCY || "SGD",
+                stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ""
             });
         });
     },

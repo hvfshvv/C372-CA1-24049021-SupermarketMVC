@@ -4,14 +4,29 @@ const db = require("../db");
 const Order = {
 
     // Create a new order
-    create(userId, totalAmount, callback) {
+    create(userId, totalAmount, opts = {}, cb) {
+        // Allow signature (userId, totalAmount, callback)
+        if (typeof opts === "function") {
+            cb = opts;
+            opts = {};
+        }
+        const {
+            paymentMethod = 'UNKNOWN',
+            paymentStatus = 'PENDING',
+            paymentRef = null,
+            payerEmail = null,
+            paidAt = null
+        } = opts;
         const sql = `
-            INSERT INTO orders (user_id, total_amount)
-            VALUES (?, ?)
-        `;
-        db.query(sql, [userId, totalAmount], (err, result) => {
-            if (err) return callback(err);
-            callback(null, result.insertId);
+    INSERT INTO orders (user_id, total_amount, payment_method, payment_status, payment_ref, payer_email, paid_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+        db.query(sql, [userId, totalAmount, paymentMethod, paymentStatus, paymentRef, payerEmail, paidAt], (err, r) => {
+            if (err) {
+                console.error("Order.create SQL error:", err.sqlMessage || err.message, "SQL:", err.sql);
+                return cb(err);
+            }
+            cb(null, r.insertId);
         });
     },
 
@@ -21,7 +36,12 @@ const Order = {
             INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
             VALUES (?, ?, ?, ?, ?)
         `;
-        db.query(sql, [orderId, productId, name, price, qty], callback);
+        db.query(sql, [orderId, productId, name, price, qty], (err, r) => {
+            if (err) {
+                console.error("Order.addItem SQL error:", err.sqlMessage || err.message, "SQL:", err.sql);
+            }
+            callback(err, r);
+        });
     },
 
     // Get one order by ID
@@ -88,6 +108,8 @@ const Order = {
                 orders.id AS order_id,
                 orders.total_amount,
                 orders.order_date,
+                orders.payment_status,
+                orders.payment_method,
                 users.username AS customer_name,
                 users.email
             FROM orders

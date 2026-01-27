@@ -42,6 +42,24 @@
 
                     <hr class="my-4">
 
+                    <!-- STRIPE PAYMENT -->
+                    <h5 class="fw-bold mb-3">Pay with Card (Stripe)</h5>
+                    <div class="text-center mb-4">
+                        <button id="stripe-pay"
+                            class="btn w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                            style="background:#635bff; border-color:#4b41d4; color:#fff; font-weight:600; height:50px; border-radius:8px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:7px; background:#fff; color:#635bff; font-weight:800; font-size:16px; font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="18" height="18" fill="#635bff">
+                                    <path d="M4 3h6.6c2.5 0 4.1 1.5 4.1 3.7 0 2.7-2.2 4-4.7 4H7.6l-.5 3.6H4L4 3Zm3.9 5.3h2.5c1 0 1.7-.6 1.7-1.5S11.6 5 10.6 5H7.9l.2 3.3Z"/>
+                                </svg>
+                            </span>
+                            <span>Pay with Card (Stripe)</span>
+                        </button>
+                        <div id="stripe-status" class="text-muted small mt-2"></div>
+                    </div>
+
+                    <hr class="my-4">
+
                     <!-- PAYPAL PAYMENT -->
                     <h5 class="fw-bold mb-3">Pay with PayPal</h5>
 
@@ -50,12 +68,15 @@
                     <!-- PayPal SDK (Class style: uses env) -->
                     <script
                         src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=<%= currency %>"></script>
+                    <script src="https://js.stripe.com/v3"></script>
 
                     <script>
                         (function () {
                             const netsBtn = document.getElementById("nets-generate");
                             const netsStatus = document.getElementById("nets-status");
                             const netsContainer = document.getElementById("nets-qr-container");
+                            const stripeBtn = document.getElementById("stripe-pay");
+                            const stripeStatus = document.getElementById("stripe-status");
                             let pollHandle = null;
 
                             function setStatus(message, isError = false) {
@@ -117,14 +138,16 @@
                                     const data = await res.json();
 
                                     if (!res.ok || !data.qrDataUrl) {
-                                        throw new Error(data.error || "Unable to create NETS QR.");
+                                        const errorMsg = data?.error || "Unable to create NETS QR.";
+                                        throw new Error(String(errorMsg));
                                     }
 
                                     const img = document.createElement("img");
                                     img.src = data.qrDataUrl;
                                     img.alt = "NETS QR Code";
                                     img.className = "img-fluid border p-2 bg-white";
-                                    img.style.maxWidth = "280px";
+                                    img.style.maxWidth = "360px";
+                                    img.style.minWidth = "280px";
                                     netsContainer.appendChild(img);
 
                                     setStatus("Scan the QR with the NETS app to pay.");
@@ -135,21 +158,57 @@
                                     netsBtn.disabled = false;
                                 }
                             });
+
+                            // Stripe handler
+                            stripeBtn?.addEventListener("click", async () => {
+                                if (!"<%= stripePublishableKey %>" || !"<%= stripePublishableKey %>".startsWith("pk_")) {
+                                    stripeStatus.textContent = "Stripe not configured (need publishable pk_ key).";
+                                    stripeStatus.classList.add("text-danger");
+                                    return;
+                                }
+                                stripeBtn.disabled = true;
+                                stripeStatus.textContent = "Redirecting to Stripe...";
+                                try {
+                                    const res = await fetch("/api/stripe/create-session", {
+                                        method: "POST",
+                                        headers: { "accept": "application/json" }
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok || !data.id) throw new Error(data.error || "Stripe error");
+
+                                    const stripe = Stripe("<%= stripePublishableKey %>");
+                                    const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
+                                    if (error) throw error;
+                                } catch (err) {
+                                    console.error("Stripe error:", err);
+                                    stripeStatus.textContent = err.message || "Unable to start payment.";
+                                    stripeStatus.classList.add("text-danger");
+                                    stripeBtn.disabled = false;
+                                }
+                            });
                         })();
                     </script>
 
                     <script>
+                    // Debug: Log the total value
+                    console.log("PayPal total value:", <%= total %>, "Type:", typeof <%= total %>);
+                    
                     paypal.Buttons({
+                        style: {
+                            layout: 'vertical',
+                            shape: 'rect'
+                        },
 
                     // call backend create-order with amount
                     createOrder: function () {
+                        console.log("Creating PayPal order with amount:", <%= total.toFixed(2) %>);
                         return fetch('/api/paypal/create-order', {
                         method: 'post',
                         headers: {
                             'content-type': 'application/json',
                             'accept': 'application/json'
                         },
-                        body: JSON.stringify({ amount: "<%= total.toFixed(2) %>" })
+                        body: JSON.stringify({ amount: <%= total.toFixed(2) %> })
                         })
                         .then(res => res.json())
                         .then(data => data.id);

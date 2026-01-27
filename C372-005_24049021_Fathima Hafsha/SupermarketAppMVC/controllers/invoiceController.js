@@ -62,7 +62,11 @@ const InvoiceController = {
                 doc.text(`Order ID: ${orderId}`);
                 doc.text(`Customer: ${user.username} (${user.email})`);
                 doc.text(`Date: ${order.order_date}`);
-                doc.text(`Payment Method: Credit / Debit Card (simulated)`);
+                doc.text(`Payment Method: ${order.payment_method || "UNKNOWN"}`);
+                doc.text(`Payment Status: ${order.payment_status || "PENDING"}`);
+                doc.text(`Payment Ref: ${order.payment_ref || "N/A"}`);
+                doc.text(`Payer Email: ${order.payer_email || user.email || "N/A"}`);
+                if (order.paid_at) doc.text(`Paid At: ${order.paid_at}`);
                 doc.moveDown();
 
                 doc.text("----------------------------------------");
@@ -92,6 +96,12 @@ const InvoiceController = {
                 doc.fontSize(10).text("Thank you for shopping with SupermarketAppMVC!", {
                     align: "center",
                 });
+                doc.text(`Payment Method: ${order.payment_method || 'UNKNOWN'}`);
+                doc.text(`Payment Status: ${order.payment_status || 'PENDING'}`);
+                doc.text(`Payment Ref: ${order.payment_ref || 'N/A'}`);
+                doc.text(`Payer Email: ${order.payer_email || 'N/A'}`);
+                if (order.paid_at) doc.text(`Paid At: ${order.paid_at}`);
+                doc.moveDown();
 
                 doc.end();
             });

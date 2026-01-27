@@ -1,0 +1,192 @@
+const crypto = require("crypto");
+const Cart = require("../models/Cart");
+const Order = require("../models/Order");
+const Transaction = require("../models/Transaction");
+const netsService = require("../services/nets");
+
+// Local helper (mirrors app.js helper) to create order from cart with payment metadata
+async function createOrderFromCart(userId, options = {}) {
+    const {
+        paymentMethod = "UNKNOWN",
+        paymentStatus = "PENDING",
+        paymentRef = null,
+        payerEmail = null,
+        paidAt = null,
+        clearCart = true,
+    } = options;
+
+    const cart = await new Promise((resolve, reject) => {
+        Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+    });
+    if (!cart.length) throw new Error("Cart empty");
+
+    const total = cart.reduce(
+        (sum, item) => sum + Number(item.price) * Number(item.quantity),
+        0
+    );
+
+    const orderId = await new Promise((resolve, reject) => {
+        Order.create(
+            userId,
+            total,
+            { paymentMethod, paymentStatus, paymentRef, payerEmail, paidAt },
+            (err, id) => (err ? reject(err) : resolve(id))
+        );
+    });
+
+    for (const item of cart) {
+        await new Promise((resolve, reject) => {
+            Order.addItem(
+                orderId,
+                item.product_id,
+                item.productName,
+                item.price,
+                item.quantity,
+                (err) => (err ? reject(err) : resolve())
+            );
+        });
+    }
+
+    if (clearCart) {
+        await new Promise((resolve, reject) =>
+            Cart.clearCart(userId, (err) => (err ? reject(err) : resolve()))
+        );
+    }
+
+    return { orderId, cart, total };
+}
+
+// POST /api/nets/qr-request
+async function requestQr(req, res) {
+    try {
+        const userId = req.session.user.id;
+
+        const cart = await new Promise((resolve, reject) => {
+            Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+        });
+
+        if (!cart.length) {
+            return res.status(400).json({ error: "Cart is empty" });
+        }
+
+        const total = cart.reduce(
+            (sum, item) => sum + Number(item.price) * Number(item.quantity),
+            0
+        );
+
+        // NETS sandbox prefers integer dollars; round for safety
+        const netsAmount = Math.max(1, Math.round(total));
+        // NETS sandbox: use correct txn_id format with UUID
+        const txnId = `sandbox_nets|m|${crypto.randomUUID()}`;
+
+        const qr = await netsService.requestQr({
+            txnId,
+            amount: netsAmount,
+            notifyMobile: 0,
+        });
+
+        req.session.netsPending = {
+            txnId,
+            txnRetrievalRef: qr.txnRetrievalRef,
+            amount: total
+        };
+
+        return res.json({
+            qrDataUrl: qr.qrDataUrl,
+            txn_retrieval_ref: qr.txnRetrievalRef,
+        });
+    } catch (err) {
+        console.error("NETS qr-request error:", err);
+        const errorMessage = err?.message || err?.toString?.() || "Failed to create NETS QR";
+        return res
+            .status(500)
+            .json({ error: errorMessage });
+    }
+}
+
+// GET /api/nets/query
+async function queryStatus(req, res) {
+    const { txn_retrieval_ref } = req.query;
+    if (!txn_retrieval_ref) {
+        return res.status(400).json({ error: "txn_retrieval_ref is required" });
+    }
+
+    try {
+        const statusData = await netsService.queryTransaction(txn_retrieval_ref);
+        const txnStatus = Number(statusData.txn_status);
+        const responseCode = statusData.response_code;
+
+        if (txnStatus === 2) {
+            const pending = req.session.netsPending;
+            if (!pending || pending.txnRetrievalRef !== txn_retrieval_ref) {
+                return res
+                    .status(400)
+                    .json({ error: "No pending NETS session for this transaction" });
+            }
+
+            // If already completed in session, return existing orderId
+            if (pending.completed && pending.orderId) {
+                return res.json({ status: "paid", orderId: pending.orderId });
+            }
+
+            const { orderId, total } = await createOrderFromCart(
+                req.session.user.id,
+                {
+                    paymentMethod: "NETS",
+                    paymentStatus: "PAID",
+                    paymentRef: txn_retrieval_ref,
+                    payerEmail: "NETS",
+                    paidAt: new Date(),
+                    clearCart: true,
+                }
+            );
+
+            req.session.netsPending = {
+                ...pending,
+                completed: true,
+                orderId,
+            };
+
+            Transaction.create(
+                {
+                    orderId: String(orderId),
+                    payerId: pending.txnId,
+                    payerEmail: "NETS",
+                    amount: total,
+                    currency: "SGD",
+                    status: `NETS_${txnStatus}`,
+                    time: new Date(),
+                    paymentMethod: "NETS",
+                    paymentRef: txn_retrieval_ref,
+                },
+                (txnErr) => txnErr && console.error("Transaction insert error:", txnErr)
+            );
+
+            return res.json({ status: "paid", orderId });
+        }
+
+        if (txnStatus === 3) {
+            return res.json({
+                status: "failed",
+                message: "NETS payment failed or was cancelled",
+                response_code: responseCode,
+            });
+        }
+
+        return res.json({
+            status: "pending",
+            txn_status: txnStatus,
+            response_code: responseCode,
+        });
+    } catch (err) {
+        console.error("NETS query error:", err);
+        return res
+            .status(500)
+            .json({ error: err.message || "NETS query failed" });
+    }
+}
+
+module.exports = {
+    requestQr,
+    queryStatus,
+};
