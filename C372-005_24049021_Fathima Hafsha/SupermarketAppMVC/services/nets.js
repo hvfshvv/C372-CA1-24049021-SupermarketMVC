@@ -155,11 +155,13 @@ function ensureCreds() {
 
 function buildHeaders() {
     const { apiKey, projectId } = getCreds();
-    return {
+    const headers = {
         "Content-Type": "application/json",
+        Accept: "application/json",
         "api-key": String(apiKey),
         "project-id": String(projectId)
     };
+    return headers;
 }
 
 async function parseJsonOrThrow(response, contextLabel) {
@@ -185,11 +187,14 @@ async function requestQr({ txnId, amount, notifyMobile = 0 }) {
         throw new Error("Invalid amount for NETS QR.");
     }
 
+    // Align with sandbox example payload (amount object, reference)
     const body = {
         txn_id: String(txnId),
-        // NETS sandbox expects integer dollars; use rounded int
-        amt_in_dollars: Math.round(amountNumber),
-        notify_mobile: Number(notifyMobile) || 0
+        amount: {
+            value: Number(amountNumber.toFixed(2)),
+            currency: "SGD",
+        },
+        reference: String(txnId)
     };
 
     console.log("NETS request headers:", buildHeaders());
@@ -199,7 +204,7 @@ async function requestQr({ txnId, amount, notifyMobile = 0 }) {
 
     try {
         const response = await axios.post(
-            `${NETS_BASE_URL}/api/v1/common/payments/nets-qr/request`,
+            `${NETS_BASE_URL}/qr/request`,
             body,
             {
                 headers: buildHeaders(),

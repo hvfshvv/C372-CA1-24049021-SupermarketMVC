@@ -33,8 +33,15 @@
                     <!-- NETS QR PAYMENT -->
                     <h5 class="fw-bold mb-3">Pay with NETS QR </h5>
                     <div class="text-center mb-4">
-                        <button id="nets-generate" class="btn btn-outline-primary mb-2">
-                            Generate NETS QR
+                        <button id="nets-generate"
+                            class="btn w-100 d-flex align-items-center justify-content-center gap-3 mx-auto mb-2"
+                            style="background:#ffe6eb; border:2px solid #e60c2f; color:#e60c2f; font-weight:700; height:50px; border-radius:10px; max-width:440px; padding:0 16px;">
+                            <svg width="90" height="22" viewBox="0 0 140 40" aria-label="NETS" role="img">
+                                <rect width="140" height="40" rx="6" fill="transparent"></rect>
+                                <text x="0" y="28" font-family="Arial Black, Arial, sans-serif" font-size="28" fill="#e60c2f">NE</text>
+                                <text x="52" y="28" font-family="Arial Black, Arial, sans-serif" font-size="28" fill="#004b99">T</text>
+                                <text x="77" y="28" font-family="Arial Black, Arial, sans-serif" font-size="28" fill="#e60c2f">S</text>
+                            </svg>
                         </button>
                         <div id="nets-status" class="text-muted small mb-2"></div>
                         <div id="nets-qr-container" class="d-flex justify-content-center"></div>
@@ -46,11 +53,12 @@
                     <h5 class="fw-bold mb-3">Pay with Card (Stripe)</h5>
                     <div class="text-center mb-4">
                         <button id="stripe-pay"
-                            class="btn w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                            style="background:#635bff; border:none; color:#fff; font-weight:600; height:50px; border-radius:8px; max-width:420px;">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/Stripe_Logo%2C_revised_2016.svg"
-                                alt="Stripe" style="height:22px;">
-                            <span style="font-size:15px;">Pay with Card (Stripe)</span>
+                            class="btn w-100 d-flex align-items-center justify-content-center gap-3 mx-auto shadow-sm"
+                            style="background:#eef0ff; border:2px solid #635bff; color:#635bff; font-weight:700; height:50px; border-radius:10px; max-width:440px; padding:0 16px;">
+                            <svg width="90" height="24" viewBox="0 0 160 48" aria-label="Stripe" role="img">
+                                <rect width="160" height="48" rx="6" fill="transparent"></rect>
+                                <text x="4" y="34" font-family="Arial Black, Arial, sans-serif" font-size="32" fill="#635bff">stripe</text>
+                            </svg>
                         </button>
                         <div id="stripe-status" class="text-muted small mt-2"></div>
                     </div>
@@ -64,7 +72,7 @@
 
                     <!-- PayPal SDK (Class style: uses env) -->
                     <script
-                        src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=<%= currency %>"></script>
+                        src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=<%= currency %>&disable-funding=card"></script>
                     <script src="https://js.stripe.com/v3"></script>
 
                     <script>
