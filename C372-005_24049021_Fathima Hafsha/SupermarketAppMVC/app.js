@@ -548,8 +548,8 @@ app.get('/api/nets/query', checkAuthenticated, async (req, res) => {
 
         console.log("GET /api/nets/query - Status:", { txnStatus, responseCode });
 
-        // txn_status == 2 means payment successful
-        if (txnStatus === 2) {
+        // txn_status == 1 means payment successful (sandbox returns 1, not 2)
+        if (txnStatus === 1) {
             const pending = req.session.netsPending;
             if (!pending || pending.txnRetrievalRef !== txn_retrieval_ref) {
                 return res.status(400).json({ error: "No pending NETS session for this transaction" });
