@@ -60,12 +60,14 @@ async function createOrderFromCart(userId, options = {}) {
 async function requestQr(req, res) {
     try {
         const userId = req.session.user.id;
+        console.log("NETS requestQr handler - userId:", userId);
 
         const cart = await new Promise((resolve, reject) => {
             Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
         });
 
         if (!cart.length) {
+            console.warn("NETS requestQr - Cart is empty");
             return res.status(400).json({ error: "Cart is empty" });
         }
 
@@ -74,16 +76,22 @@ async function requestQr(req, res) {
             0
         );
 
+        console.log("NETS requestQr - Cart total:", total);
+
         // NETS sandbox prefers integer dollars; round for safety
         const netsAmount = Math.max(1, Math.round(total));
         // NETS sandbox: use correct txn_id format with UUID
         const txnId = `sandbox_nets|m|${crypto.randomUUID()}`;
+
+        console.log("NETS requestQr - Calling netsService.requestQr with:", { txnId, netsAmount });
 
         const qr = await netsService.requestQr({
             txnId,
             amount: netsAmount,
             notifyMobile: 0,
         });
+
+        console.log("NETS requestQr - QR generated successfully, txnRef:", qr.txnRetrievalRef);
 
         req.session.netsPending = {
             txnId,
@@ -96,7 +104,12 @@ async function requestQr(req, res) {
             txn_retrieval_ref: qr.txnRetrievalRef,
         });
     } catch (err) {
-        console.error("NETS qr-request error:", err);
+        console.error("NETS requestQr error:", {
+            message: err.message,
+            stack: err.stack,
+            responseStatus: err.response?.status,
+        });
+        
         const errorMessage = err?.message || err?.toString?.() || "Failed to create NETS QR";
         return res
             .status(500)
@@ -113,9 +126,12 @@ async function queryStatus(req, res) {
 
     try {
         const statusData = await netsService.queryTransaction(txn_retrieval_ref);
-        const txnStatus = Number(statusData.txn_status);
-        const responseCode = statusData.response_code;
+        const txnStatus = Number(statusData.txnStatus);
+        const responseCode = statusData.responseCode;
 
+        console.log("Query result - txnStatus:", txnStatus, "responseCode:", responseCode);
+
+        // txn_status == 2 means payment successful
         if (txnStatus === 2) {
             const pending = req.session.netsPending;
             if (!pending || pending.txnRetrievalRef !== txn_retrieval_ref) {
@@ -165,6 +181,7 @@ async function queryStatus(req, res) {
             return res.json({ status: "paid", orderId });
         }
 
+        // txn_status == 3 means payment failed or cancelled
         if (txnStatus === 3) {
             return res.json({
                 status: "failed",
@@ -173,6 +190,7 @@ async function queryStatus(req, res) {
             });
         }
 
+        // Any other status is pending
         return res.json({
             status: "pending",
             txn_status: txnStatus,

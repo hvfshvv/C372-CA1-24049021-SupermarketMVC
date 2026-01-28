@@ -474,8 +474,186 @@ app.get('/stripe/success', checkAuthenticated, async (req, res) => {
 });
 
 // NETS QR (Sandbox) - use controller (2FA disabled for testing)
-app.post('/api/nets/qr-request', checkAuthenticated, NetsController.requestQr);
-app.get('/api/nets/query', checkAuthenticated, NetsController.queryStatus);
+app.post('/api/nets/qr-request', checkAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const cart = await new Promise((resolve, reject) => {
+            Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+        });
+
+        if (!cart.length) {
+            return res.status(400).json({ error: "Cart is empty" });
+        }
+
+        const cartTotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+        
+        console.log("POST /api/nets/qr-request - Cart total:", cartTotal);
+
+        // Call the old generateQrCode logic with cartTotal
+        const netsService = require('./services/nets');
+        // Use fixed txnId like the working demo - merchant account may be tied to this ID
+        const txnId = 'sandbox_nets|m|8ff8e5b6-d43e-4786-8ac5-7accf8c5bd9b';
+
+        console.log("Requesting QR with txnId:", txnId, "amount:", cartTotal);
+
+        const qrResult = await netsService.requestQr({
+            txnId,
+            amount: Math.max(1, Math.round(cartTotal)),
+            notifyMobile: 0,
+        });
+
+        console.log("QR generated successfully:", {
+            txnRef: qrResult.txnRetrievalRef,
+            hasQrData: !!qrResult.qrDataUrl,
+        });
+
+        // Store in session for later reference
+        req.session.netsPending = {
+            txnId,
+            txnRetrievalRef: qrResult.txnRetrievalRef,
+            amount: cartTotal,
+            userId
+        };
+
+        // Return in format expected by checkout.ejs
+        return res.json({
+            qrDataUrl: qrResult.qrDataUrl,
+            txn_retrieval_ref: qrResult.txnRetrievalRef,
+        });
+
+    } catch (err) {
+        console.error("POST /api/nets/qr-request error:", {
+            message: err.message,
+            stack: err.stack,
+        });
+        return res.status(500).json({ 
+            error: err.message || "Failed to generate QR code" 
+        });
+    }
+});
+
+app.get('/api/nets/query', checkAuthenticated, async (req, res) => {
+    const { txn_retrieval_ref } = req.query;
+    
+    if (!txn_retrieval_ref) {
+        return res.status(400).json({ error: "txn_retrieval_ref is required" });
+    }
+
+    try {
+        const netsService = require('./services/nets');
+        const statusData = await netsService.queryTransaction(txn_retrieval_ref);
+        
+        const txnStatus = Number(statusData.txnStatus);
+        const responseCode = statusData.responseCode;
+
+        console.log("GET /api/nets/query - Status:", { txnStatus, responseCode });
+
+        // txn_status == 2 means payment successful
+        if (txnStatus === 2) {
+            const pending = req.session.netsPending;
+            if (!pending || pending.txnRetrievalRef !== txn_retrieval_ref) {
+                return res.status(400).json({ error: "No pending NETS session for this transaction" });
+            }
+
+            // If already completed in session, return existing orderId
+            if (pending.completed && pending.orderId) {
+                return res.json({ status: "paid", orderId: pending.orderId });
+            }
+
+            // Create order from cart
+            const userId = pending.userId || req.session.user.id;
+            const cart = await new Promise((resolve, reject) => {
+                Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+            });
+
+            if (!cart.length) {
+                return res.status(400).json({ error: "Cart is empty, cannot create order" });
+            }
+
+            const total = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+
+            const orderId = await new Promise((resolve, reject) => {
+                Order.create(
+                    userId,
+                    total,
+                    {
+                        paymentMethod: "NETS",
+                        paymentStatus: "PAID",
+                        paymentRef: txn_retrieval_ref,
+                        payerEmail: "NETS",
+                        paidAt: new Date(),
+                    },
+                    (err, id) => (err ? reject(err) : resolve(id))
+                );
+            });
+
+            // Add items to order
+            for (const item of cart) {
+                await new Promise((resolve, reject) => {
+                    Order.addItem(
+                        orderId,
+                        item.product_id,
+                        item.productName,
+                        item.price,
+                        item.quantity,
+                        (err) => (err ? reject(err) : resolve())
+                    );
+                });
+            }
+
+            // Clear cart
+            await new Promise((resolve, reject) => {
+                Cart.clearCart(userId, (err) => (err ? reject(err) : resolve()));
+            });
+
+            // Record transaction
+            Transaction.create(
+                {
+                    orderId: String(orderId),
+                    payerId: pending.txnId,
+                    payerEmail: "NETS",
+                    amount: total,
+                    currency: "SGD",
+                    status: `NETS_${txnStatus}`,
+                    time: new Date(),
+                    paymentMethod: "NETS",
+                    paymentRef: txn_retrieval_ref,
+                },
+                (txnErr) => txnErr && console.error("Transaction insert error:", txnErr)
+            );
+
+            req.session.netsPending = { ...pending, completed: true, orderId };
+
+            console.log("Order created successfully:", orderId);
+            return res.json({ status: "paid", orderId });
+        }
+
+        // txn_status == 3 means payment failed or cancelled
+        if (txnStatus === 3) {
+            return res.json({
+                status: "failed",
+                message: "NETS payment failed or was cancelled",
+                response_code: responseCode,
+            });
+        }
+
+        // Any other status is pending
+        return res.json({
+            status: "pending",
+            txn_status: txnStatus,
+            response_code: responseCode,
+        });
+
+    } catch (err) {
+        console.error("GET /api/nets/query error:", {
+            message: err.message,
+            stack: err.stack,
+        });
+        return res.status(500).json({ 
+            error: err.message || "NETS query failed" 
+        });
+    }
+});
 
 // PAYPAL (CA2) - CREATE ORDER (2FA disabled for testing)
 app.post('/api/paypal/create-order', checkAuthenticated, async (req, res) => {
