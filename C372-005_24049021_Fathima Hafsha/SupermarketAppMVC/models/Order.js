@@ -15,13 +15,19 @@ const Order = {
             paymentStatus = 'PENDING',
             paymentRef = null,
             payerEmail = null,
-            paidAt = null
+            paidAt = null,
+            deliveryType = 'NOW',
+            scheduledAt = null,
+            etaMin = null,
+            etaMax = null,
+            promoCode = null,
+            promoDiscount = 0
         } = opts;
         const sql = `
-    INSERT INTO orders (user_id, total_amount, payment_method, payment_status, payment_ref, payer_email, paid_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO orders (user_id, total_amount, payment_method, payment_status, payment_ref, payer_email, paid_at, delivery_type, scheduledAt, eta_min, eta_max, promoCode, promoDiscount, delivery_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PREPARING')
   `;
-        db.query(sql, [userId, totalAmount, paymentMethod, paymentStatus, paymentRef, payerEmail, paidAt], (err, r) => {
+        db.query(sql, [userId, totalAmount, paymentMethod, paymentStatus, paymentRef, payerEmail, paidAt, deliveryType, scheduledAt, etaMin, etaMax, promoCode, promoDiscount], (err, r) => {
             if (err) {
                 console.error("Order.create SQL error:", err.sqlMessage || err.message, "SQL:", err.sql);
                 return cb(err);
@@ -110,6 +116,11 @@ const Order = {
                 orders.order_date,
                 orders.payment_status,
                 orders.payment_method,
+                orders.delivery_status,
+                orders.delivery_type,
+                orders.scheduledAt,
+                orders.eta_min,
+                orders.eta_max,
                 orders.refundStatus,
                 orders.refundReason,
                 orders.refundRequestedAt,
@@ -121,7 +132,29 @@ const Order = {
             ORDER BY orders.order_date DESC
         `;
         db.query(sql, callback);
+    },
+
+    // Get tracking info for an order
+    getTracking(orderId, callback) {
+        const sql = `
+            SELECT 
+                id, delivery_status, deliveryUpdatedAt, eta_min, eta_max, delivery_type, scheduledAt
+            FROM orders 
+            WHERE id = ?
+        `;
+        db.query(sql, [orderId], (err, results) => {
+            if (err) return callback(err);
+            callback(null, results[0] || null);
+        });
+    },
+
+    // Update delivery status (admin)
+    updateDeliveryStatus(orderId, status, callback) {
+        const sql = `
+            UPDATE orders 
+            SET delivery_status = ?, deliveryUpdatedAt = NOW()
+            WHERE id = ?
+        `;
+        db.query(sql, [status, orderId], callback);
     }
 };
-
-module.exports = Order;

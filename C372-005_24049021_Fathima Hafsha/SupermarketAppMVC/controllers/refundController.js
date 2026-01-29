@@ -140,6 +140,7 @@ const RefundController = {
         const orderId = req.params.id;
         const mode = (req.body.mode || "full").toLowerCase();
         const reason = (req.body.reason || "").trim();
+        const amountInput = req.body.amount ? Number(req.body.amount) : null;
 
         const order = await new Promise((resolve, reject) =>
             Order.getById(orderId, (err, o) => (err ? reject(err) : resolve(o)))
@@ -157,14 +158,17 @@ const RefundController = {
             return flashAndBack(req, res, "error", "No pending refund request to process.", "/admin/orders");
         }
 
-        const amount =
-            mode === "partial" ? Number(order.total_amount || latestTxn.amount || 0) / 2
-                                : Number(order.total_amount || latestTxn.amount || 0);
+        const totalPaid = Number(order.total_amount || latestTxn?.amount || 0);
+        let amount = mode === "partial" ? totalPaid / 2 : totalPaid;
+        if (amountInput && amountInput > 0) amount = amountInput;
+        if (amount > totalPaid) {
+            return flashAndBack(req, res, "error", "Refund amount exceeds paid total.", "/admin/orders");
+        }
 
         const note = reason || latestTxn.refund_status || "Processing refund";
 
-        await markOrderRefunded(orderId, order.payment_method, order.payment_ref, order.payer_email, "PROCESSING");
-        await setRefundStatus(orderId, "APPROVED", `${mode.toUpperCase()}: ${note}`);
+        await markOrderRefunded(orderId, order.payment_method, order.payment_ref, order.payer_email, "REFUNDED");
+        await setRefundStatus(orderId, "APPROVED", `${mode.toUpperCase()}: ${note} (SGD ${amount.toFixed(2)})`);
 
         await new Promise((resolve) =>
             Transaction.create(
@@ -174,17 +178,17 @@ const RefundController = {
                     payerEmail: order.payer_email,
                     amount,
                     currency: latestTxn.currency || "SGD",
-                    status: "PROCESSING",
+                    status: "REFUNDED",
                     time: new Date(),
                     paymentMethod: order.payment_method,
                     paymentRef: order.payment_ref,
-                    refundStatus: `Processing (${mode.toUpperCase()}): ${note}`
+                    refundStatus: `Approved (${mode.toUpperCase()}) SGD ${amount.toFixed(2)}: ${note}`
                 },
                 () => resolve()
             )
         );
 
-        req.flash("success", "Refund marked as processing.");
+        req.flash("success", "Refund approved.");
         return res.redirect("/admin/orders");
     },
 

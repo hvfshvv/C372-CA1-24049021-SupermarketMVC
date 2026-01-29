@@ -1,75 +1,98 @@
 <%- include("partials/header"); %>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container py-4" style="max-width: 900px;">
+  <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold mb-0">Refund Center</h2>
-        <p class="text-muted mb-0">Submit a refund request for paid Stripe or PayPal orders (within 7 days of purchase).</p>
+      <h2 class="fw-bold mb-2">Refund Center</h2>
+      <p class="text-muted mb-0 small">Request refunds for Stripe or PayPal orders within 7 days of purchase.</p>
     </div>
-    <a href="/orders" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Back to Orders
+    <a href="/orders" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Back to Orders
     </a>
-</div>
+  </div>
 
-<% if (!orders || orders.length === 0) { %>
-    <div class="card shadow-sm p-3">
-        <div class="alert alert-info mb-0">You have no refundable orders yet.</div>
+  <% if (!orders || orders.length === 0) { %>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted mb-2">No refundable orders</h5>
+        <p class="text-muted mb-0">You don't have any eligible orders for refund yet.</p>
+        <a href="/shopping" class="btn btn-primary btn-sm mt-3">Start Shopping</a>
+      </div>
     </div>
-<% } else { %>
+  <% } else { %>
     <div class="row g-3">
-        <% orders.forEach(o => { %>
-            <div class="col-md-6">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div>
-                                <div class="fw-bold">Order #<%= o.id %></div>
-                                <div class="text-muted small"><%= new Date(o.order_date).toLocaleString() %></div>
-                            </div>
-                            <span class="badge bg-secondary text-uppercase"><%= o.payment_method || 'UNKNOWN' %></span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">Total</span>
-                            <span class="fw-bold">$<%= Number(o.total_amount).toFixed(2) %></span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">Payment</span>
-                            <% const payStatus = (o.payment_status || 'PENDING').toUpperCase(); %>
-                            <span class="badge <%= payStatus==='PAID'?'bg-success':payStatus==='PENDING'?'bg-secondary':payStatus.includes('REFUND')?'bg-warning text-dark':'bg-info' %>">
-                                <%= payStatus %>
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span class="text-muted">Refund</span>
-                            <% const rStat = (o.refundStatus || 'NONE').toUpperCase(); %>
-                            <span class="badge <%= rStat==='REQUESTED'?'bg-warning text-dark': rStat==='APPROVED'||rStat==='SUCCEEDED'?'bg-success': rStat==='REJECTED'?'bg-danger':'bg-secondary' %>">
-                                <%= rStat %>
-                            </span>
-                        </div>
-                        <% if ((o.refundStatus || 'NONE') === 'NONE') { %>
-                            <form action="/refund/request/<%= o.id %>" method="POST" class="mt-auto">
-                                <div class="mb-2">
-                                    <label class="form-label small text-muted">Reason</label>
-                                    <textarea name="reason" rows="2" class="form-control" placeholder="Reason (required)" required></textarea>
-                                </div>
-                                <button class="btn btn-outline-danger w-100">Request Refund</button>
-                            </form>
-                        <% } else { %>
-                            <div class="alert alert-light border mt-auto mb-0">
-                                <div class="fw-bold mb-1">Latest update</div>
-                                <% if (o.latestTxn && o.latestTxn.refund_status) { %>
-                                    <div class="small"><%= o.latestTxn.refund_status %></div>
-                                <% } else if (o.refundReason) { %>
-                                    <div class="small"><%= o.refundReason %></div>
-                                <% } else { %>
-                                    <div class="small text-muted">No additional notes.</div>
-                                <% } %>
-                            </div>
-                        <% } %>
-                    </div>
+      <% orders.forEach(o => { %>
+        <% const refundStat = (o.refundStatus || 'NONE').toUpperCase(); %>
+        <div class="col-md-6">
+          <div class="card h-100 shadow-sm border-0">
+            <div class="card-body d-flex flex-column">
+              <!-- Header -->
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <div class="h6 fw-bold mb-1">Order #<%= o.id %></div>
+                  <div class="text-muted small"><%= new Date(o.order_date).toLocaleDateString() %></div>
                 </div>
+                <span class="badge bg-light text-dark border"><%= o.payment_method || 'UNKNOWN' %></span>
+              </div>
+
+              <!-- Amount -->
+              <div class="border-top border-bottom py-2 mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="text-muted">Total Amount</span>
+                  <h5 class="fw-bold mb-0">$<%= Number(o.total_amount).toFixed(2) %></h5>
+                </div>
+              </div>
+
+              <!-- Payment & Refund Status -->
+              <div class="mb-3 small">
+                <div class="d-flex justify-content-between mb-2">
+                  <span class="text-muted">Payment Status</span>
+                  <span class="badge bg-success">PAID</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="text-muted">Refund Status</span>
+                  <% if (refundStat === 'NONE') { %>
+                    <span class="badge bg-secondary">No request</span>
+                  <% } else if (refundStat === 'REQUESTED') { %>
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  <% } else if (refundStat === 'APPROVED' || refundStat === 'SUCCEEDED') { %>
+                    <span class="badge bg-success">Approved</span>
+                  <% } else if (refundStat === 'REJECTED') { %>
+                    <span class="badge bg-danger">Rejected</span>
+                  <% } else { %>
+                    <span class="badge bg-secondary"><%= refundStat %></span>
+                  <% } %>
+                </div>
+              </div>
+
+              <!-- Action or Status -->
+              <% if (refundStat === 'NONE') { %>
+                <form action="/refund/request/<%= o.id %>" method="POST" class="mt-auto">
+                  <div class="mb-3">
+                    <label class="form-label small fw-bold">Reason for refund</label>
+                    <textarea name="reason" rows="2" class="form-control form-control-sm" placeholder="Tell us why you need a refund..." required></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-danger w-100 btn-sm">Request Refund</button>
+                </form>
+              <% } else { %>
+                <div class="alert alert-light border mt-auto">
+                  <div class="fw-bold small mb-2">Refund Status</div>
+                  <% if (refundStat === 'REQUESTED') { %>
+                    <p class="small text-muted mb-0">Your refund request is being reviewed by our team. You'll receive an update within 2-3 business days.</p>
+                  <% } else if (refundStat === 'REJECTED') { %>
+                    <p class="small text-danger mb-0"><strong>Refund rejected.</strong> <%= o.refundReason || 'No reason provided.' %></p>
+                  <% } else if (refundStat === 'APPROVED' || refundStat === 'SUCCEEDED') { %>
+                    <p class="small text-success mb-0"><strong>Refund approved!</strong> Check your <%= o.payment_method %> account for the refunded amount.</p>
+                  <% } %>
+                </div>
+              <% } %>
             </div>
-        <% }); %>
+          </div>
+        </div>
+      <% }); %>
     </div>
-<% } %>
+  <% } %>
+</div>
 
 <%- include("partials/footer"); %>

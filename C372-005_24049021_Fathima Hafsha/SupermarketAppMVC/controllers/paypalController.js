@@ -2,6 +2,7 @@
 const Cart = require("../models/Cart");
 const Order = require("../models/Order");
 const paypalService = require("../services/paypalService");
+const { applyPromo } = require("../services/promoService");
 
 async function getCartTotal(userId) {
     const cart = await new Promise((resolve, reject) => {
@@ -18,11 +19,39 @@ async function getCartTotal(userId) {
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.session.user.id;
-        const { total } = await getCartTotal(userId);
+        const { amount, promoCode, deliveryType, scheduledAt } = req.body;
 
-        if (total <= 0) return res.status(400).json({ error: "Cart is empty" });
+        // Validate promo if provided
+        let promoDiscount = 0;
+        if (promoCode) {
+            const promoResult = await applyPromo(promoCode, amount);
+            if (!promoResult.applied) {
+                return res.status(400).json({ error: promoResult.message });
+            }
+            promoDiscount = promoResult.discount;
+        }
 
-        const paypalOrder = await paypalService.createOrder(total);
+        // Validate delivery timing
+        if (deliveryType === 'SCHEDULED' && scheduledAt) {
+            const schedTime = new Date(scheduledAt);
+            const minTime = new Date(Date.now() + 45 * 60000);
+            if (schedTime < minTime) {
+                return res.status(400).json({ error: 'Scheduled time must be 45+ mins from now' });
+            }
+        }
+
+        const finalAmount = Math.max(0, amount - promoDiscount);
+        const paypalOrder = await paypalService.createOrder(finalAmount);
+        
+        // Store in session for later use
+        req.session.paypalPending = {
+            promoCode,
+            promoDiscount,
+            deliveryType: deliveryType || 'NOW',
+            scheduledAt: scheduledAt || null,
+            amount: finalAmount
+        };
+
         return res.json({ id: paypalOrder.id });
     } catch (err) {
         console.error("PayPal createOrder error:", err.message);
@@ -34,23 +63,55 @@ exports.createOrder = async (req, res) => {
 exports.captureOrder = async (req, res) => {
     try {
         const userId = req.session.user.id;
-        const { orderId } = req.body;
+        const { orderID } = req.body;
 
-        if (!orderId) return res.status(400).json({ error: "Missing orderId" });
+        if (!orderID) return res.status(400).json({ error: "Missing orderID" });
 
-        const capture = await paypalService.captureOrder(orderId);
+        const capture = await paypalService.captureOrder(orderID);
 
-        // PayPal success check (worksheet usually checks COMPLETED)
+        // PayPal success check
         if (capture.status !== "COMPLETED") {
             return res.status(400).json({ error: "Payment not completed", capture });
         }
 
-        // Now create DB order (your CA1 logic)
+        // Get cart
         const { cart, total } = await getCartTotal(userId);
         if (!cart.length) return res.status(400).json({ error: "Cart is empty" });
 
+        // Get promo data from session
+        const pending = req.session.paypalPending || {};
+        const promoDiscount = pending.promoDiscount || 0;
+        const deliveryType = pending.deliveryType || 'NOW';
+        const scheduledAt = pending.scheduledAt || null;
+        const promoCode = pending.promoCode || null;
+
+        // Calculate ETA for NOW deliveries
+        let etaMin = null, etaMax = null;
+        if (deliveryType === 'NOW') {
+            etaMin = 45;
+            etaMax = 60;
+        }
+
+        // Create order with delivery/promo metadata
         const newOrderId = await new Promise((resolve, reject) => {
-            Order.create(userId, total, (err, id) => (err ? reject(err) : resolve(id)));
+            Order.create(
+                userId,
+                total,
+                {
+                    paymentMethod: 'PAYPAL',
+                    paymentStatus: 'PAID',
+                    paymentRef: orderID,
+                    payerEmail: capture.payer?.email_address || null,
+                    paidAt: new Date(),
+                    deliveryType,
+                    scheduledAt,
+                    etaMin,
+                    etaMax,
+                    promoCode,
+                    promoDiscount
+                },
+                (err, id) => (err ? reject(err) : resolve(id))
+            );
         });
 
         for (const item of cart) {
@@ -70,11 +131,14 @@ exports.captureOrder = async (req, res) => {
             Cart.clearCart(userId, (err) => (err ? reject(err) : resolve()));
         });
 
+        // Cleanup session
+        req.session.paypalPending = null;
+
         // Return orderId so frontend can redirect to success page
         return res.json({
             success: true,
             orderId: newOrderId,
-            paypalOrderId: capture.id,
+            paypalOrderId: orderID,
         });
     } catch (err) {
         console.error("PayPal captureOrder error:", err.message);

@@ -1,5 +1,18 @@
 const PDFDocument = require("pdfkit");
-const Order = require("../models/Order");
+const db = require("../db");
+let Order = require("../models/Order");
+
+// safety fallbacks if model export is empty
+if (typeof Order.getItems !== "function") {
+    Order.getItems = (orderId, cb) => {
+        db.query(`SELECT * FROM order_items WHERE order_id=?`, [orderId], (err, rows) => cb(err, rows || []));
+    };
+}
+if (typeof Order.getById !== "function") {
+    Order.getById = (orderId, cb) => {
+        db.query(`SELECT * FROM orders WHERE id=? LIMIT 1`, [orderId], (err, rows) => cb(err, rows && rows[0]));
+    };
+}
 
 const InvoiceController = {
     download: (req, res) => {

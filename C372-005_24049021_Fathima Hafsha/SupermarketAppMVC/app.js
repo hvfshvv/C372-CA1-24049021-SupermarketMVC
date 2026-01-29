@@ -24,6 +24,69 @@ const paypal = require('./services/paypal');
 const { computeTotalWithBenefits } = require('./services/benefits');
 const Cart = require('./models/Cart');
 const Order = require('./models/Order');
+console.log("Order model loaded with keys:", Object.keys(Order));
+
+// Safety: if Order model functions were not exported, provide minimal fallbacks to keep payments working
+if (typeof Order.create !== "function") {
+    const db = require("./db");
+    Order.create = (userId, totalAmount, opts = {}, cb) => {
+        if (typeof opts === "function") { cb = opts; opts = {}; }
+        const {
+            paymentMethod = 'UNKNOWN',
+            paymentStatus = 'PENDING',
+            paymentRef = null,
+            payerEmail = null,
+            paidAt = null,
+            deliveryType = 'NOW',
+            scheduledAt = null,
+            etaMin = null,
+            etaMax = null,
+            promoCode = null,
+            promoDiscount = 0
+        } = opts;
+        db.query(
+            `INSERT INTO orders (user_id,total_amount,payment_method,payment_status,payment_ref,payer_email,paid_at,delivery_type,scheduledAt,eta_min,eta_max,promoCode,promoDiscount,delivery_status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'PREPARING')`,
+            [userId, totalAmount, paymentMethod, paymentStatus, paymentRef, payerEmail, paidAt, deliveryType, scheduledAt, etaMin, etaMax, promoCode, promoDiscount],
+            (err, r) => cb(err, r && r.insertId)
+        );
+    };
+}
+if (typeof Order.addItem !== "function") {
+    const db = require("./db");
+    Order.addItem = (orderId, productId, name, price, qty, cb) => {
+        db.query(
+            `INSERT INTO order_items (order_id, product_id, product_name, price, quantity) VALUES (?,?,?,?,?)`,
+            [orderId, productId, name, price, qty],
+            cb
+        );
+    };
+}
+if (typeof Order.getOrderWithItems !== "function") {
+    const db = require("./db");
+    Order.getOrderWithItems = (orderId, callback) => {
+        const orderSql = `SELECT * FROM orders WHERE id = ?`;
+        const itemsSql = `SELECT * FROM order_items WHERE order_id = ?`;
+        db.query(orderSql, [orderId], (err, orderRows) => {
+            if (err) return callback(err);
+            const order = orderRows && orderRows[0];
+            if (!order) return callback(null, null, []);
+            db.query(itemsSql, [orderId], (err2, itemRows) => {
+                if (err2) return callback(err2);
+                callback(null, order, itemRows || []);
+            });
+        });
+    };
+}
+if (typeof Order.getItems !== "function") {
+    const db = require("./db");
+    Order.getItems = (orderId, callback) => {
+        db.query(`SELECT * FROM order_items WHERE order_id = ?`, [orderId], (err, rows) => {
+            if (err) return callback(err);
+            callback(null, rows || []);
+        });
+    };
+}
 const Transaction = require("./models/Transaction");
 const db = require("./db");
 const stripeSdk = require("stripe");
@@ -306,6 +369,9 @@ async function syncStripePaymentIntent(pi, desiredStatus = "PAID") {
 // ----------------------------
 // HOME PAGE (products included)
 // ----------------------------
+// lightweight ping endpoint used by some uptime tools/browser extensions
+app.get('/NODEping', (req, res) => res.sendStatus(200));
+
 app.get('/', (req, res) => {
     Product.getAll((err, products) => {
         if (err) {
@@ -425,7 +491,7 @@ app.post('/api/stripe/create-session', checkAuthenticated, async (req, res) => {
         }));
 
         const benefits = await computeTotalWithBenefits(userId, cart);
-        const promo = Promo.applyPromo(promoCode, benefits.base);
+        const promo = await Promo.applyPromo(promoCode, benefits.base);
         const promoDiscount = promo.applied ? promo.discount : 0;
         const total = Math.max(0.5, benefits.base + benefits.deliveryFee - benefits.discount - promoDiscount);
 
@@ -915,7 +981,7 @@ app.post('/api/paypal/create-order', checkAuthenticated, async (req, res) => {
         const benefits = await computeTotalWithBenefits(userId, cart);
         const Delivery = require("./services/deliveryService");
         const Promo = require("./services/promoService");
-        const promo = Promo.applyPromo(promoCode, benefits.base);
+        const promo = await Promo.applyPromo(promoCode, benefits.base);
         const promoDiscount = promo.applied ? promo.discount : 0;
         amount = Math.max(0.5, benefits.base + benefits.deliveryFee - benefits.discount - promoDiscount).toFixed(2);
 
@@ -1030,6 +1096,7 @@ app.post('/api/paypal/capture-order', checkAuthenticated, async (req, res) => {
 app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
 app.get('/refunds', checkAuthenticated, ensure2FA, OrderController.refundsPage);
 app.get('/order/:id', checkAuthenticated, ensure2FA, OrderController.detail);
+app.get('/orders/:id', checkAuthenticated, ensure2FA, OrderController.detail);
 app.get('/transactions', checkAuthenticated, ensure2FA, OrderController.transactions);
 app.get('/subscription', checkAuthenticated, ensure2FA, SubscriptionController.view);
 app.post('/subscription/subscribe', checkAuthenticated, ensure2FA, SubscriptionController.subscribe);
@@ -1038,47 +1105,39 @@ app.post('/api/subscription/paypal/create-order', checkAuthenticated, ensure2FA,
 app.post('/api/subscription/paypal/capture-order', checkAuthenticated, ensure2FA, SubscriptionController.capturePaypalOrder);
 app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);
 
-// ADMIN — View ALL customer orders
-app.get('/admin/orders', checkAuthenticated, ensure2FA, checkAdmin, OrderController.adminList);
-app.get('/admin/subscriptions', checkAuthenticated, ensure2FA, checkAdmin, SubscriptionController.adminList);
-app.post('/admin/refund/stripe/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.stripe);
-app.post('/admin/refund/paypal/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.paypal);
-app.post('/admin/refund/reject/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.reject);
-app.post('/admin/refund/process/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.processManual);
-app.post('/refund/request/:id', checkAuthenticated, RefundController.request);
-
-// START SERVER
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, async () => {
+// Promo & Tracking APIs
+app.post('/api/promo/validate', checkAuthenticated, async (req, res) => {
+    const { code, subtotal } = req.body || {};
+    const { applyPromo } = require('./services/promoService');
     try {
-        await reconcilePayments();
-        console.log("Reconciliation complete");
+        const result = await applyPromo(code, subtotal);
+        return res.json(result);
     } catch (err) {
-        console.error("Reconciliation error:", err);
+        console.error('Promo validation error:', err);
+        return res.json({ applied: false, discount: 0, message: 'Error validating promo' });
     }
-    console.log("Server running at http://localhost:" + PORT);
 });
+
 app.get('/api/orders/:id/tracking', checkAuthenticated, async (req, res) => {
     const orderId = req.params.id;
-    const Delivery = require('./services/deliveryService');
     try {
         const order = await new Promise((resolve, reject) => {
-            db.query('SELECT * FROM orders WHERE id=?', [orderId], (err, rows) => err ? reject(err) : resolve(rows?.[0]));
+            db.query('SELECT id, user_id, delivery_status, deliveryUpdatedAt, delivery_type, scheduledAt, eta_min, eta_max FROM orders WHERE id=?', [orderId], (err, rows) => err ? reject(err) : resolve(rows?.[0]));
         });
         if (!order) return res.status(404).json({ error: 'Not found' });
-        if (req.session.user.role !== 'admin' && Number(order.user_id) !== Number(req.session.user.id)) {
+        if (Number(order.user_id) !== Number(req.session.user.id) && req.session.user.role !== 'admin') {
             return res.status(403).json({ error: 'Forbidden' });
         }
-        const etaText = order.delivery_type === 'SCHEDULED' && order.scheduledAt
-            ? Delivery.computeETA({ deliveryType: 'SCHEDULED', scheduledAt: order.scheduledAt })?.etaText
-            : Delivery.computeETA({ deliveryType: 'NOW', total: order.total_amount, scheduledAt: null })?.etaText;
         res.json({
-            status: order.delivery_status || 'PREPARING',
-            updatedAt: order.deliveryUpdatedAt || order.order_date,
-            etaText
+            delivery_status: order.delivery_status || 'PREPARING',
+            deliveryUpdatedAt: order.deliveryUpdatedAt,
+            delivery_type: order.delivery_type,
+            scheduledAt: order.scheduledAt,
+            eta_min: order.eta_min,
+            eta_max: order.eta_max
         });
     } catch (err) {
-        console.error('tracking error', err);
+        console.error('Tracking error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1086,7 +1145,7 @@ app.get('/api/orders/:id/tracking', checkAuthenticated, async (req, res) => {
 app.post('/admin/orders/:id/delivery-status', checkAuthenticated, ensure2FA, checkAdmin, (req, res) => {
     const orderId = req.params.id;
     const { status } = req.body || {};
-    const allowed = ['PREPARING','OUT_FOR_DELIVERY','DELIVERED'];
+    const allowed = ['PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED'];
     if (!allowed.includes(status)) {
         req.flash('error', 'Invalid status');
         return res.redirect('/admin/orders');
@@ -1096,7 +1155,7 @@ app.post('/admin/orders/:id/delivery-status', checkAuthenticated, ensure2FA, che
         [status, orderId],
         (err) => {
             if (err) {
-                console.error('update delivery status error', err);
+                console.error('Update delivery status error:', err);
                 req.flash('error', 'Failed to update');
             } else {
                 req.flash('success', 'Delivery status updated');
@@ -1104,4 +1163,26 @@ app.post('/admin/orders/:id/delivery-status', checkAuthenticated, ensure2FA, che
             res.redirect('/admin/orders');
         }
     );
+});
+
+// ADMIN — View ALL customer orders
+app.get('/admin/orders', checkAuthenticated, ensure2FA, checkAdmin, OrderController.adminList);
+app.get('/admin/fulfillment', checkAuthenticated, ensure2FA, checkAdmin, OrderController.adminFulfill);
+app.get('/admin/subscriptions', checkAuthenticated, ensure2FA, checkAdmin, SubscriptionController.adminList);
+app.post('/admin/refund/stripe/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.stripe);
+app.post('/admin/refund/paypal/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.paypal);
+app.post('/admin/refund/reject/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.reject);
+app.post('/admin/refund/process/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.processManual);
+app.post('/refund/request/:id', checkAuthenticated, RefundController.request);
+
+// START SERVER
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, async () => {
+    try {
+        await reconcilePayments();
+        console.log("Reconciliation complete");
+    } catch (err) {
+        console.error("Reconciliation error:", err);
+    }
+    console.log("Server running at http://localhost:" + PORT);
 });

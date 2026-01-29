@@ -1,85 +1,88 @@
-<%- include("partials/header"); %>
+﻿<%- include("partials/header") %>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container py-4" style="max-width: 1200px;">
+  <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="fw-bold mb-0">My Orders</h2>
-    <a href="/refunds" class="btn btn-outline-danger">
-        <i class="bi bi-arrow-repeat me-1"></i> Go to Refund Center
+    <a href="/refunds" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-arrow-repeat me-1"></i> Refund Center
     </a>
-</div>
+  </div>
 
-<% if (!orders || orders.length === 0) { %>
+  <% const visibleOrders = (orders || []).filter(o => {
+    const st = (o.payment_status || '').toUpperCase();
+    return st !== 'CANCELLED' && st !== 'FAILED';
+  }); %>
 
-    <div class="alert alert-info">
-        You have not placed any orders yet.
+  <% if (!visibleOrders || visibleOrders.length === 0) { %>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted mb-2">No orders yet</h5>
+        <p class="text-muted mb-0">When you place an order, it will appear here.</p>
+        <a href="/shopping" class="btn btn-primary btn-sm mt-3">Start Shopping</a>
+      </div>
     </div>
-
-<% } else { %>
-
-<div class="card shadow-sm p-3">
-
-    <table class="table table-bordered table-hover align-middle">
-        <thead class="table-dark">
+  <% } else { %>
+    <div class="card shadow-sm border-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light border-bottom">
             <tr>
-                <th>Order ID</th>
-                <th>Date</th>
-                <th>Total Amount ($)</th>
-                <th>Invoice</th>
-                <th>Status</th>
-                <th>Method</th>
+              <th class="fw-bold">Order #</th>
+              <th class="fw-bold">Date</th>
+              <th class="fw-bold">Total</th>
+              <th class="fw-bold">Payment</th>
+              <th class="fw-bold">Delivery</th>
+              <th class="fw-bold text-end">Actions</th>
             </tr>
-            </thead>
-            
-            <tbody>
-                <% orders.forEach(o=> { %>
-                    <tr>
-                        <td>#<%= o.id %>
-                        </td>
-                        <td>
-                            <%= (new Date(o.order_date)).toLocaleString() %>
-                        </td>
-                        <td>$<%= Number(o.total_amount).toFixed(2) %>
-                        </td>
-                        <td>
-                            <a href="/invoice/<%= o.id %>" class="btn btn-outline-primary btn-sm">Download</a>
-                        </td>
-                        <td>
-                            <% const status = (o.payment_status || 'PENDING').toUpperCase(); %>
-                            <span class="badge 
-                                <%= status==='PAID' ? 'bg-success' : '' %>
-                                <%= status==='PENDING' ? 'bg-secondary' : '' %>
-                                <%= status==='PARTIAL_REFUND' ? 'bg-warning text-dark' : '' %>
-                                <%= status==='REFUNDED' ? 'bg-danger' : '' %>">
-                                <%= status %>
-                            </span>
-                        </td>
-                        <td>
-                            <%= o.payment_method || 'UNKNOWN' %>
-                            <% if (o.payment_ref) { %>
-                                <div class="dropdown d-inline ms-1">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Details
-                                    </button>
-                                    <div class="dropdown-menu p-3 small">
-                                        <div class="text-muted">Payment Ref:</div>
-                                        <div class="fw-bold"><%= o.payment_ref %></div>
-                                        <% if ((o.refundStatus || 'NONE') !== 'NONE') { %>
-                                            <hr class="my-2">
-                                            <div class="text-muted">Refund Status:</div>
-                                            <div><%= o.refundStatus %></div>
-                                        <% } %>
-                                    </div>
-                                </div>
-                            <% } %>
-                        </td>
-                    </tr>
-                    <% }) %>
-            </tbody>
-            </table>
+          </thead>
+          <tbody>
+            <% visibleOrders.forEach(o=> { %>
+              <% const payStatus = (o.payment_status || 'PENDING').toUpperCase(); %>
+              <% const delStatus = (o.delivery_status || 'PREPARING').toUpperCase(); %>
+              <% const payBadge = payStatus === 'PAID' ? 'bg-success' : payStatus === 'REFUNDED' ? 'bg-danger' : payStatus === 'PARTIALLY_REFUNDED' ? 'bg-warning text-dark' : 'bg-secondary'; %>
+              <% const delBadge = delStatus === 'DELIVERED' ? 'bg-success' : delStatus === 'OUT_FOR_DELIVERY' ? 'bg-info text-dark' : 'bg-secondary'; %>
+              <tr>
+                <td class="fw-bold">#<%= o.id %></td>
+                <td class="text-muted small"><%= new Date(o.order_date).toLocaleDateString() %></td>
+                <td class="fw-bold">$<%= Number(o.total_amount).toFixed(2) %></td>
+                <td>
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge <%= payBadge %>"><%= payStatus %></span>
+                    <span class="badge bg-light text-dark border"><%= o.payment_method || 'UNKNOWN' %></span>
+                  </div>
+                </td>
+                <td>
+                  <div>
+                    <span class="badge <%= delBadge %>"><%= delStatus.replaceAll('_', ' ') %></span>
+                    <% if (o.delivery_type === 'SCHEDULED' && o.scheduledAt) { %>
+                      <div class="small text-muted mt-1">
+                        <%= new Date(o.scheduledAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) %>
+                      </div>
+                    <% } %>
+                  </div>
+                </td>
+                <td class="text-end">
+                  <div class="btn-group btn-group-sm" role="group">
+                    <a href="/orders/<%= o.id %>" class="btn btn-outline-primary" title="View details">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="/invoice/<%= o.id %>" class="btn btn-outline-secondary" title="Download invoice">
+                      <i class="bi bi-download"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } %>
 
+  <a href="/shopping" class="btn btn-secondary mt-4">
+    <i class="bi bi-shop me-1"></i> Back to Shopping
+  </a>
 </div>
 
-<% } %>
-
-<a href="/shopping" class="btn btn-secondary mt-3">Back to Shop</a>
-
-<%- include("partials/footer"); %>
+<%- include("partials/footer") %>

@@ -3,8 +3,12 @@ const Subscription = require("../models/Subscription");
 
 function isActive(sub) {
   if (!sub) return false;
+  const now = Date.now();
+  const endTs = sub.endDate ? new Date(sub.endDate).getTime() : null;
+  // treat cancelled-at-period-end as active until endDate
+  if (sub.status === "CANCELLED" && endTs && endTs > now) return true;
   if (sub.status !== "ACTIVE") return false;
-  if (sub.endDate && new Date(sub.endDate).getTime() < Date.now()) return false;
+  if (endTs && endTs < now) return false;
   return true;
 }
 

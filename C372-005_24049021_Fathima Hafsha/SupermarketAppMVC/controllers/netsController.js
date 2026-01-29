@@ -4,6 +4,7 @@ const Order = require("../models/Order");
 const Transaction = require("../models/Transaction");
 const netsService = require("../services/nets");
 const { computeTotalWithBenefits } = require("../services/benefits");
+const { applyPromo } = require("../services/promoService");
 
 // Local helper (mirrors app.js helper) to create order from cart with payment metadata
 async function createOrderFromCart(userId, options = {}) {
@@ -13,6 +14,12 @@ async function createOrderFromCart(userId, options = {}) {
         paymentRef = null,
         payerEmail = null,
         paidAt = null,
+        deliveryType = "NOW",
+        scheduledAt = null,
+        etaMin = null,
+        etaMax = null,
+        promoCode = null,
+        promoDiscount = 0,
         clearCart = true,
         forceTotal = null,
     } = options;
@@ -32,7 +39,19 @@ async function createOrderFromCart(userId, options = {}) {
         Order.create(
             userId,
             total,
-            { paymentMethod, paymentStatus, paymentRef, payerEmail, paidAt },
+            { 
+                paymentMethod, 
+                paymentStatus, 
+                paymentRef, 
+                payerEmail, 
+                paidAt,
+                deliveryType,
+                scheduledAt,
+                etaMin,
+                etaMax,
+                promoCode,
+                promoDiscount
+            },
             (err, id) => (err ? reject(err) : resolve(id))
         );
     });
@@ -63,7 +82,9 @@ async function createOrderFromCart(userId, options = {}) {
 async function requestQr(req, res) {
     try {
         const userId = req.session.user.id;
-        console.log("NETS requestQr handler - userId:", userId);
+        const { promoCode, deliveryType, scheduledAt, selectedIndices } = req.body || {};
+
+        console.log("NETS requestQr handler - userId:", userId, "promoCode:", promoCode, "deliveryType:", deliveryType);
 
         const cart = await new Promise((resolve, reject) => {
             Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
@@ -74,8 +95,28 @@ async function requestQr(req, res) {
             return res.status(400).json({ error: "Cart is empty" });
         }
 
+        // Apply promo validation
+        let promoDiscount = 0;
+        if (promoCode) {
+            const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+            const promoResult = await applyPromo(promoCode, subtotal);
+            if (!promoResult.applied) {
+                return res.status(400).json({ error: promoResult.message });
+            }
+            promoDiscount = promoResult.discount;
+        }
+
+        // Validate delivery timing
+        if (deliveryType === 'SCHEDULED' && scheduledAt) {
+            const schedTime = new Date(scheduledAt);
+            const minTime = new Date(Date.now() + 45 * 60000);
+            if (schedTime < minTime) {
+                return res.status(400).json({ error: 'Scheduled time must be 45+ mins from now' });
+            }
+        }
+
         const benefits = await computeTotalWithBenefits(userId, cart);
-        const total = benefits.total;
+        let total = benefits.total - promoDiscount;
 
         console.log("NETS requestQr - Cart total:", total);
 
@@ -94,10 +135,23 @@ async function requestQr(req, res) {
 
         console.log("NETS requestQr - QR generated successfully, txnRef:", qr.txnRetrievalRef);
 
+        // Calculate ETA for NOW deliveries
+        let etaMin = null, etaMax = null;
+        if (deliveryType === 'NOW') {
+            etaMin = 45;
+            etaMax = 60;
+        }
+
         req.session.netsPending = {
             txnId,
             txnRetrievalRef: qr.txnRetrievalRef,
-            amount: total
+            amount: total,
+            promoCode,
+            promoDiscount,
+            deliveryType: deliveryType || 'NOW',
+            scheduledAt: scheduledAt || null,
+            etaMin,
+            etaMax
         };
 
         return res.json({
@@ -154,6 +208,12 @@ async function queryStatus(req, res) {
                     paymentRef: txn_retrieval_ref,
                     payerEmail: "NETS",
                     paidAt: new Date(),
+                    deliveryType: pending.deliveryType || "NOW",
+                    scheduledAt: pending.scheduledAt || null,
+                    etaMin: pending.etaMin,
+                    etaMax: pending.etaMax,
+                    promoCode: pending.promoCode,
+                    promoDiscount: pending.promoDiscount,
                     clearCart: true,
                     forceTotal: pending.amount ?? total,
                 }

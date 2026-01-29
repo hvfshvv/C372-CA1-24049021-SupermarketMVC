@@ -66,7 +66,7 @@
 
           <% if (active) { %>
             <div class="d-flex flex-wrap gap-2 mt-3">
-              <button type="button" class="btn btn-outline-primary" id="sub-paypal-btn"><i class="bi bi-arrow-repeat me-1"></i> Change / Upgrade</button>
+              <button type="button" class="btn btn-outline-primary" id="change-plan-btn"><i class="bi bi-arrow-repeat me-1"></i> Change / Upgrade</button>
               <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal"><i class="bi bi-x-circle me-1"></i> Cancel</button>
             </div>
           <% } %>
@@ -78,8 +78,13 @@
       <div class="card shadow-sm border-0 h-100">
         <div class="card-body">
           <h5 class="fw-bold mb-3">Secure checkout</h5>
+          <div class="mb-2 small">
+            <span class="badge bg-success me-1"><i class="bi bi-paypal me-1"></i>PayPal enabled</span>
+            <span class="badge bg-secondary text-dark me-1"><i class="bi bi-credit-card me-1"></i>Stripe N/A</span>
+            <span class="badge bg-secondary text-dark"><i class="bi bi-qr-code me-1"></i>NETS N/A</span>
+          </div>
           <form id="sub-paypal-form" class="row g-3">
-            <input type="hidden" name="plan" id="plan" value="BASIC">
+            <input type="hidden" name="plan" id="plan" value="">
             <div class="col-12 d-flex align-items-center">
               <input class="form-check-input me-2" type="checkbox" name="autoRenew" id="autoRenew">
               <label class="form-check-label" for="autoRenew">Auto renew monthly</label>
@@ -88,9 +93,9 @@
               <p class="small text-muted mb-1"><i class="bi bi-lock-fill me-1"></i> PayPal secure checkout</p>
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-muted small">Selected plan</span>
-                <span class="fw-bold" id="selected-plan-label">Basic • $<%= (pricing?.BASIC || 4.99).toFixed(2) %>/mo</span>
+                <span class="fw-bold" id="selected-plan-label">Choose a plan to continue</span>
               </div>
-              <button type="button" id="sub-paypal-btn" class="btn btn-primary w-100">
+              <button type="button" id="sub-pay-btn" class="btn btn-primary w-100" disabled>
                 <span class="spinner-border spinner-border-sm me-2 d-none" id="sub-spinner"></span>
                 Pay with PayPal
               </button>
@@ -128,25 +133,34 @@
 <script src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=SGD&disable-funding=card"></script>
 <script>
 (() => {
-  const btn = document.getElementById('sub-paypal-btn');
+  const payBtn = document.getElementById('sub-pay-btn');
   const spinner = document.getElementById('sub-spinner');
   const planInput = document.getElementById('plan');
-  if (!btn) return;
+  const label = document.getElementById('selected-plan-label');
+  if (!payBtn) return;
   if (!"<%= paypalClientId %>") {
-    btn.disabled = true;
-    btn.textContent = 'PayPal not configured';
+    payBtn.disabled = true;
+    payBtn.textContent = 'PayPal not configured';
     return;
+  }
+  function setSelected(planKey, price) {
+    planInput.value = planKey;
+    label.textContent = `${planKey === 'PREMIUM' ? 'Premium' : 'Basic'} • $${price}/mo`;
+    payBtn.textContent = `Pay $${price}/mo with PayPal`;
+    payBtn.disabled = false;
   }
   document.querySelectorAll('.select-plan').forEach(el => {
     el.addEventListener('click', () => {
-      planInput.value = el.dataset.plan;
       const price = el.dataset.price || (el.dataset.plan === 'PREMIUM' ? '<%= (pricing?.PREMIUM || 9.99).toFixed(2) %>' : '<%= (pricing?.BASIC || 4.99).toFixed(2) %>');
-      document.getElementById('selected-plan-label').textContent = `${el.dataset.plan === 'PREMIUM' ? 'Premium' : 'Basic'} • $${price}/mo`;
-      btn.textContent = `Pay $${price}/mo with PayPal`;
+      setSelected(el.dataset.plan, price);
     });
   });
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
+  payBtn.addEventListener('click', async () => {
+    if (!planInput.value) {
+      alert('Please choose a plan first.');
+      return;
+    }
+    payBtn.disabled = true;
     spinner.classList.remove('d-none');
     try {
       const form = document.getElementById('sub-paypal-form');
@@ -173,13 +187,13 @@
           if (!cap.ok || !r.success) throw new Error(r.error || 'Capture failed');
           window.location.reload();
         },
-        onCancel: () => { btn.disabled = false; spinner.classList.add('d-none'); btn.textContent = 'Pay with PayPal'; },
-        onError: (err) => { alert(err.message || 'PayPal error'); btn.disabled = false; spinner.classList.add('d-none'); btn.textContent = 'Pay with PayPal'; }
+        onCancel: () => { payBtn.disabled = false; spinner.classList.add('d-none'); payBtn.textContent = 'Pay with PayPal'; },
+        onError: (err) => { alert(err.message || 'PayPal error'); payBtn.disabled = false; spinner.classList.add('d-none'); payBtn.textContent = 'Pay with PayPal'; }
       });
       paypalButtons.render('#sub-paypal-form');
     } catch (err) {
       alert(err.message || 'Unable to start PayPal');
-      btn.disabled = false;
+      payBtn.disabled = false;
     } finally {
       spinner.classList.add('d-none');
     }

@@ -1,83 +1,182 @@
 ﻿<%- include("partials/header"); %>
 
-<div class="container py-5" style="max-width: 960px;">
-  <div class="text-center mb-4">
-    <div class="display-5 text-success mb-2"><i class="bi bi-check-circle-fill"></i></div>
-    <h2 class="fw-bold">Payment Successful</h2>
-    <p class="text-muted mb-0">Thank you for shopping with us, <%= user.username %>!</p>
+<div class="container py-5" style="max-width: 900px;">
+  <!-- Success Header -->
+  <div class="text-center mb-5">
+    <div class="display-5 text-success mb-3">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <h2 class="fw-bold mb-2">Payment Successful!</h2>
+    <p class="text-muted fs-6">Thank you for your order, <%= user.username %>. We're preparing your delivery.</p>
   </div>
 
   <% if (order) { %>
     <div class="row g-4">
+      <!-- Order Info & Tracking (Left) -->
       <div class="col-lg-5">
         <div class="card shadow-sm border-0 h-100">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
+            <!-- Order Header -->
+            <div class="d-flex justify-content-between align-items-start mb-3">
               <div>
-                <small class="text-muted">Order ID</small>
-                <div class="fw-bold fs-5">#<%= order.id %></div>
+                <small class="text-muted d-block">Order ID</small>
+                <div class="h5 fw-bold mb-0">#<%= order.id %></div>
               </div>
-              <span class="badge bg-success"><%= order.payment_status || 'PAID' %></span>
+              <span class="badge bg-success">PAID</span>
             </div>
-            <p class="mb-1"><i class="bi bi-calendar3 me-1"></i> <%= new Date(order.order_date).toLocaleString() %></p>
-            <p class="mb-1"><i class="bi bi-credit-card me-1"></i> <strong><%= order.payment_method || 'UNKNOWN' %></strong></p>
-            <% if (order.payment_ref) { %>
-              <p class="mb-1"><i class="bi bi-hash me-1"></i> <code><%= order.payment_ref %></code></p>
-            <% } %>
-            <p class="mb-1"><i class="bi bi-truck me-1"></i>
-              <span class="badge bg-info text-dark">
-                <%= order.delivery_type === 'SCHEDULED' && order.scheduledAt ? 'Scheduled ' + new Date(order.scheduledAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Deliver now' %>
-              </span>
-              <% if (order.eta_min || order.eta_max) { %>
-                <small class="text-muted ms-2">ETA <%= order.eta_min || '?' %>-<%= order.eta_max || '?' %> mins</small>
+
+            <!-- Order Details -->
+            <div class="border-top pt-3 pb-3 small">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Date</span>
+                <span class="fw-semibold"><%= new Date(order.order_date).toLocaleString() %></span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Total</span>
+                <span class="fw-bold">$<%= Number(order.total_amount).toFixed(2) %></span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Payment</span>
+                <span class="badge bg-light text-dark border"><%= order.payment_method || 'UNKNOWN' %></span>
+              </div>
+              <% if (order.payment_ref) { %>
+                <div class="d-flex justify-content-between">
+                  <span class="text-muted">Reference</span>
+                  <code class="text-monospace small"><%= order.payment_ref.substring(0, 12) %>...</code>
+                </div>
               <% } %>
-            </p>
-            <hr>
-            <h6 class="fw-bold mb-2">Delivery tracking</h6>
-            <div id="tracking-steps" class="d-flex gap-2 flex-wrap">
-              <span class="badge bg-secondary" data-step="PREPARING">Preparing</span>
-              <span class="badge bg-secondary" data-step="OUT_FOR_DELIVERY">Out for delivery</span>
-              <span class="badge bg-secondary" data-step="DELIVERED">Delivered</span>
             </div>
-            <div class="small text-muted mt-2" id="tracking-meta"></div>
+
+            <!-- Delivery Info -->
+            <div class="border-top pt-3 pb-3 small">
+              <div class="mb-2">
+                <small class="text-muted d-block">Delivery Type</small>
+                <% if (order.delivery_type === 'SCHEDULED' && order.scheduledAt) { %>
+                  <span class="badge bg-info text-dark">Scheduled</span>
+                  <div class="small text-muted mt-1">
+                    <%= new Date(order.scheduledAt).toLocaleString() %>
+                  </div>
+                <% } else { %>
+                  <span class="badge bg-success">Now</span>
+                  <% if (order.eta_min || order.eta_max) { %>
+                    <div class="small text-muted mt-1">
+                      ETA <%= order.eta_min || '?' %>-<%= order.eta_max || '?' %> mins
+                    </div>
+                  <% } %>
+                <% } %>
+              </div>
+            </div>
+
+            <!-- Delivery Tracking Stepper -->
+            <div class="border-top pt-3">
+              <small class="text-muted d-block mb-2">Delivery Status</small>
+              <div id="trackingStepper" class="d-flex gap-2 align-items-stretch">
+                <div class="flex-grow-1 text-center">
+                  <div class="badge w-100 mb-2 step-badge" data-step="PREPARING">Preparing</div>
+                  <div class="small text-muted" data-step-time="PREPARING"></div>
+                </div>
+                <div class="flex-grow-1 text-center">
+                  <div class="badge w-100 mb-2 step-badge" data-step="OUT_FOR_DELIVERY">Out for delivery</div>
+                  <div class="small text-muted" data-step-time="OUT_FOR_DELIVERY"></div>
+                </div>
+                <div class="flex-grow-1 text-center">
+                  <div class="badge w-100 mb-2 step-badge" data-step="DELIVERED">Delivered</div>
+                  <div class="small text-muted" data-step-time="DELIVERED"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- Items (Right) -->
       <div class="col-lg-7">
         <div class="card shadow-sm border-0 h-100">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h5 class="fw-bold mb-0">Items</h5>
-              <span class="badge bg-success">Paid $<%= Number(order.total_amount).toFixed(2) %></span>
-            </div>
+            <h5 class="fw-bold mb-3">Order Items</h5>
             <div class="list-group list-group-flush">
               <% items.forEach(item => { %>
-                <div class="list-group-item d-flex align-items-center">
-                  <div class="ratio ratio-1x1 me-3" style="width:56px;">
+                <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                  <div class="ratio ratio-1x1 flex-shrink-0" style="width:64px;">
                     <img class="img-fluid rounded" src="<%= item.image || '/images/placeholder.png' %>" alt="<%= item.product_name %>" onerror="this.src='/images/placeholder.png'">
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="fw-semibold"><%= item.product_name %></div>
-                    <div class="text-muted small">$<%= Number(item.price).toFixed(2) %> each</div>
+                  <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold text-truncate"><%= item.product_name %></div>
+                    <div class="small text-muted">$<%= Number(item.price).toFixed(2) %> each</div>
                   </div>
-                  <span class="badge bg-secondary me-3">x<%= item.quantity %></span>
-                  <div class="fw-bold">$<%= (item.price * item.quantity).toFixed(2) %></div>
+                  <div class="flex-shrink-0 text-end">
+                    <div class="badge bg-secondary">×<%= item.quantity %></div>
+                    <div class="small fw-bold mt-1">$<%= (item.price * item.quantity).toFixed(2) %></div>
+                  </div>
                 </div>
               <% }); %>
-            </div>
-            <div class="d-flex justify-content-end gap-2 mt-3">
-              <a href="/orders" class="btn btn-outline-secondary"><i class="bi bi-receipt-cutoff me-1"></i> View order</a>
-              <a href="/shopping" class="btn btn-primary"><i class="bi bi-shop me-1"></i> Continue shopping</a>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex gap-2 mt-4 justify-content-center flex-wrap">
+      <a href="/orders" class="btn btn-outline-secondary">
+        <i class="bi bi-receipt-cutoff me-1"></i> View Orders
+      </a>
+      <a href="/shopping" class="btn btn-primary">
+        <i class="bi bi-shop me-1"></i> Continue Shopping
+      </a>
+    </div>
   <% } else { %>
-    <div class="alert alert-warning">Order not found.</div>
+    <div class="alert alert-warning text-center">Order not found.</div>
   <% } %>
 </div>
+
+<script>
+(function() {
+  const orderId = new URLSearchParams(window.location.search).get('orderId');
+  if (!orderId) return;
+
+  const trackingStepper = document.getElementById('trackingStepper');
+  let currentStatus = '<%= order?.delivery_status || "PREPARING" %>';
+
+  async function pollTracking() {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/tracking`);
+      const data = await res.json();
+      
+      if (data.delivery_status) {
+        currentStatus = data.delivery_status;
+        updateStepper(currentStatus);
+        
+        // Stop polling once delivered
+        if (currentStatus === 'DELIVERED') {
+          clearInterval(pollHandle);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Tracking poll error:', err);
+    }
+  }
+
+  function updateStepper(status) {
+    const steps = ['PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+    const currentIndex = steps.indexOf(status);
+    
+    trackingStepper?.querySelectorAll('.step-badge').forEach((badge, idx) => {
+      badge.classList.remove('bg-success', 'bg-secondary');
+      if (idx <= currentIndex) {
+        badge.classList.add('bg-success');
+      } else {
+        badge.classList.add('bg-secondary');
+      }
+    });
+  }
+
+  // Poll tracking every 10 seconds
+  updateStepper(currentStatus);
+  const pollHandle = setInterval(pollTracking, 10000);
+})();
+</script>
 
 <%- include("partials/footer"); %>
 <script>

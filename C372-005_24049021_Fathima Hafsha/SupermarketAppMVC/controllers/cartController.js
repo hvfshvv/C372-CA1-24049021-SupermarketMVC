@@ -236,17 +236,30 @@ const CartController = {
             let total = 0;
             cart.forEach(i => total += Number(i.price) * i.quantity);
 
-            // Default delivery now ETA
             const Delivery = require("../services/deliveryService");
+            const Benefits = require("../services/benefits");
             const eta = Delivery.computeETA({ deliveryType: "NOW", total });
 
-            res.render("checkout", {
-                cart,
-                total,
-                eta,
-                paypalClientId: process.env.PAYPAL_CLIENT_ID,
-                currency: process.env.PAYPAL_CURRENCY || "SGD",
-                stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ""
+            Benefits.computeTotalWithBenefits(userId, cart).then((benefits) => {
+                res.render("checkout", {
+                    cart,
+                    total: benefits.total,
+                    benefits,
+                    eta,
+                    paypalClientId: process.env.PAYPAL_CLIENT_ID,
+                    currency: process.env.PAYPAL_CURRENCY || "SGD",
+                    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ""
+                });
+            }).catch(() => {
+                res.render("checkout", {
+                    cart,
+                    total,
+                    benefits: { base: total, deliveryFee: 2.0, discount: 0, plan: "NONE", total },
+                    eta,
+                    paypalClientId: process.env.PAYPAL_CLIENT_ID,
+                    currency: process.env.PAYPAL_CURRENCY || "SGD",
+                    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ""
+                });
             });
         });
     },

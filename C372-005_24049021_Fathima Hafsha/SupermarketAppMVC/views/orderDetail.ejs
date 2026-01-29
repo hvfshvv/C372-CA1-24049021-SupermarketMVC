@@ -1,4 +1,4 @@
-<%- include('partials/header'); %>
+﻿<%- include('partials/header'); %>
 
 <h2 class="fw-bold mb-3">Order Details</h2>
 <div class="card shadow-sm p-4">
@@ -17,6 +17,45 @@
         </div>
     </div>
 
+    <!-- Delivery tracking -->
+    <div class="card border-0 bg-light mb-4">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Delivery status</h6>
+        <% const dstat = (order.delivery_status || 'PREPARING').toUpperCase(); %>
+        <% const steps = ['PREPARING','OUT_FOR_DELIVERY','DELIVERED']; %>
+
+        <div class="position-relative pb-3">
+          <div class="progress" style="height: 6px; background:#e9ecef;">
+            <div class="progress-bar" role="progressbar"
+                 style="width:<%= (steps.indexOf(dstat) / (steps.length-1)) * 100 %>%;"
+                 aria-valuenow="<%= steps.indexOf(dstat) %>" aria-valuemin="0" aria-valuemax="2"></div>
+          </div>
+          <div class="d-flex justify-content-between mt-2 flex-wrap gap-2">
+            <% steps.forEach(function(step){ const active = steps.indexOf(step) <= steps.indexOf(dstat); %>
+              <div class="d-flex flex-column align-items-center" style="min-width:90px;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center mb-1"
+                     style="width:34px;height:34px; border:2px solid <%= active ? '#0d6efd' : '#ced4da' %>; background:<%= active ? '#e7f1ff' : '#fff' %>;">
+                  <% if(step==='PREPARING'){ %><i class="bi bi-tools text-primary"></i><% } %>
+                  <% if(step==='OUT_FOR_DELIVERY'){ %><i class="bi bi-truck text-primary"></i><% } %>
+                  <% if(step==='DELIVERED'){ %><i class="bi bi-check2-circle text-success"></i><% } %>
+                </div>
+                <span class="small fw-semibold <%= active ? 'text-dark' : 'text-muted' %>"><%= step.replace(/_/g,' ') %></span>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+
+        <div class="small text-muted">
+          <% if (order.delivery_type === 'SCHEDULED' && order.scheduledAt) { %>
+            Scheduled: <%= new Date(order.scheduledAt).toLocaleString() %><br>
+          <% } %>
+          <% if (order.eta_min || order.eta_max) { %>
+            ETA window: <%= order.eta_min || '?' %>-<%= order.eta_max || '?' %> mins
+          <% } %>
+        </div>
+      </div>
+    </div>
+
     <h5 class="fw-bold">Items</h5>
     <div class="table-responsive">
         <table class="table table-bordered align-middle">
@@ -29,14 +68,14 @@
                 </tr>
             </thead>
             <tbody>
-                <% items.forEach(i => { %>
+                <% items.forEach(function(i){ %>
                     <tr>
                         <td><%= i.product_name %></td>
                         <td>$<%= Number(i.price).toFixed(2) %></td>
                         <td><%= i.quantity %></td>
                         <td>$<%= (Number(i.price) * i.quantity).toFixed(2) %></td>
                     </tr>
-                <% }) %>
+                <% }); %>
             </tbody>
         </table>
     </div>

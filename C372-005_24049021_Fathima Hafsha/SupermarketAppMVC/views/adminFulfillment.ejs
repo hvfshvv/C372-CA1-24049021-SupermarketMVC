@@ -1,0 +1,101 @@
+﻿<%- include("partials/header") %>
+
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0">Fulfillment Queue</h2>
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/orders">
+      <i class="bi bi-arrow-left me-1"></i> Back to Orders
+    </a>
+  </div>
+
+  <% if (!orders || orders.length === 0) { %>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-check-circle fs-1 text-success d-block mb-3"></i>
+        <h5 class="text-muted mb-0">All caught up!</h5>
+        <p class="text-muted">No pending deliveries or refund requests.</p>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="card shadow-sm border-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light border-bottom">
+            <tr>
+              <th class="fw-bold">Order</th>
+              <th class="fw-bold">Customer</th>
+              <th class="fw-bold">Total</th>
+              <th class="fw-bold">Delivery Status</th>
+              <th class="fw-bold">Delivery Details</th>
+              <th class="fw-bold">Refund Request</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% orders.forEach(o => { %>
+              <% const dstat = (o.delivery_status || 'PREPARING').toUpperCase(); %>
+              <% const refund = (o.refundStatus || 'NONE').toUpperCase(); %>
+              <% const dclass = dstat==='DELIVERED' ? 'bg-success' : dstat==='OUT_FOR_DELIVERY' ? 'bg-info text-dark' : 'bg-secondary'; %>
+              <tr>
+                <td class="fw-bold">#<%= o.order_id %></td>
+                <td class="small">
+                  <div><%= o.customer_name %></div>
+                  <div class="text-muted"><%= o.email %></div>
+                </td>
+                <td class="fw-bold">$<%= Number(o.total_amount).toFixed(2) %></td>
+                <td>
+                  <form action="/admin/orders/<%= o.order_id %>/delivery-status" method="POST" class="d-flex gap-1">
+                    <select name="status" class="form-select form-select-sm" style="width: 180px;">
+                      <option value="PREPARING" <%= dstat==='PREPARING'?'selected':'' %>>Preparing</option>
+                      <option value="OUT_FOR_DELIVERY" <%= dstat==='OUT_FOR_DELIVERY'?'selected':'' %>>Out for delivery</option>
+                      <option value="DELIVERED" <%= dstat==='DELIVERED'?'selected':'' %>>Delivered</option>
+                    </select>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Update</button>
+                  </form>
+                </td>
+                <td class="text-muted small">
+                  <% if (o.delivery_type === 'SCHEDULED' && o.scheduledAt) { %>
+                    <div><strong>Scheduled:</strong> <%= new Date(o.scheduledAt).toLocaleString() %></div>
+                  <% } else { %>
+                    <div><strong>Now</strong></div>
+                    <% if (o.eta_min || o.eta_max) { %>
+                      <div>ETA: <%= o.eta_min %>-<%= o.eta_max %> mins</div>
+                    <% } %>
+                  <% } %>
+                </td>
+                <td>
+                  <% const isRefundRequest = refund === 'REQUESTED'; %>
+                  <% const isRefundable = o.payment_status === 'PAID' && (o.payment_method === 'STRIPE' || o.payment_method === 'PAYPAL'); %>
+                  <% if (isRefundRequest) { %>
+                    <div class="alert alert-warning p-2 mb-2 small"><strong>PENDING</strong></div>
+                    <form action="/admin/refund/process/<%= o.order_id %>" method="POST" class="mb-2">
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text">SGD</span>
+                        <input type="number" name="amount" step="0.01" min="0" class="form-control" placeholder="Amount">
+                      </div>
+                      <div class="d-flex gap-1">
+                        <button type="submit" name="mode" value="full" class="btn btn-danger btn-sm flex-grow-1">Approve Full</button>
+                        <button type="submit" name="mode" value="partial" class="btn btn-outline-danger btn-sm flex-grow-1">Partial</button>
+                      </div>
+                    </form>
+                    <form action="/admin/refund/reject/<%= o.order_id %>" method="POST">
+                      <input type="text" name="reason" class="form-control form-control-sm mb-2" placeholder="Reason to reject" required>
+                      <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Reject</button>
+                    </form>
+                  <% } else if (refund !== 'NONE') { %>
+                    <span class="badge <%= refund==='APPROVED' ? 'bg-success' : refund==='REJECTED' ? 'bg-danger' : 'bg-warning text-dark' %>"><%= refund %></span>
+                  <% } else if (isRefundable) { %>
+                    <span class="text-muted">No request</span>
+                  <% } else { %>
+                    <span class="badge bg-light text-dark border">Not refundable</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<%- include("partials/footer") %>

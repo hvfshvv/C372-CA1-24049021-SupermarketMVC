@@ -1,14 +1,23 @@
 // controllers/orderController.js
-const Order = require('../models/Order');
+let Order = require('../models/Order');
 const db = require("../db");
+
+function fetchUserOrders(userId, callback) {
+    db.query(
+        `SELECT * FROM orders WHERE user_id = ? ORDER BY order_date DESC`,
+        [userId],
+        (err, rows) => callback(err, rows || [])
+    );
+}
 
 const OrderController = {
 
+    // Auto-expire payments stuck in PENDING or PROCESSING >5 minutes
     expirePendingPayments(callback) {
         db.query(
-            `UPDATE orders 
-             SET payment_status='CANCELLED' 
-             WHERE payment_status='PENDING' 
+            `UPDATE orders
+             SET payment_status='CANCELLED'
+             WHERE (payment_status='PENDING' OR payment_status='PROCESSING')
                AND order_date < DATE_SUB(NOW(), INTERVAL 5 MINUTE)`,
             () => callback()
         );
@@ -16,13 +25,15 @@ const OrderController = {
 
     // My Orders page for normal users
     list: (req, res) => {
+        // ensure fresh model (avoids rare require cache issues)
+        Order = require('../models/Order');
         const user = req.session.user;
         if (user && user.role === "admin") {
             return res.redirect("/admin/orders");
         }
 
         OrderController.expirePendingPayments(() => {
-            Order.getByUser(user.id, async (err, orders) => {
+            fetchUserOrders(user.id, async (err, orders) => {
                 if (err) {
                     console.error("USER ORDERS ERROR:", err);
                     return res.status(500).send("Failed to load orders");
@@ -46,7 +57,7 @@ const OrderController = {
     // Refund center (user)
     refundsPage: (req, res) => {
         const user = req.session.user;
-        Order.getByUser(user.id, async (err, orders) => {
+        fetchUserOrders(user.id, async (err, orders) => {
             if (err) {
                 console.error("USER REFUNDS ERROR:", err);
                 return res.status(500).send("Failed to load orders");
@@ -126,11 +137,28 @@ const OrderController = {
             // optional filters
             const methodFilter = req.query.method;
             const statusFilter = req.query.status;
+            const refundFilter = req.query.refund;
+            const query = (req.query.q || "").toLowerCase();
+            const deliveryFilter = req.query.delivery;
+
             if (methodFilter) {
                 list = list.filter(o => (o.payment_method || "").toUpperCase() === methodFilter.toUpperCase());
             }
             if (statusFilter) {
                 list = list.filter(o => (o.payment_status || "").toUpperCase() === statusFilter.toUpperCase());
+            }
+            if (refundFilter) {
+                list = list.filter(o => (o.refundStatus || "NONE").toUpperCase() === refundFilter.toUpperCase());
+            }
+            if (deliveryFilter) {
+                list = list.filter(o => (o.delivery_status || "PREPARING").toUpperCase() === deliveryFilter.toUpperCase());
+            }
+            if (query) {
+                list = list.filter(o =>
+                    (o.customer_name || "").toLowerCase().includes(query) ||
+                    (o.email || "").toLowerCase().includes(query) ||
+                    String(o.order_id || "").includes(query)
+                );
             }
 
             const withTxn = await Promise.all(
@@ -144,6 +172,43 @@ const OrderController = {
 
             res.render("adminOrders", {
                 orders: withTxn,
+                user: req.session.user,
+                q: req.query.q || "",
+                status: req.query.status || "",
+                refund: req.query.refund || "",
+                method: req.query.method || "",
+                delivery: req.query.delivery || ""
+            });
+        }));
+    },
+
+    // ADMIN: Delivery + Refund queue
+    adminFulfill: async (req, res) => {
+        OrderController.expirePendingPayments(() => Order.getAllOrders(async (err, results) => {
+            if (err) {
+                console.error("ADMIN FULFILL ERROR:", err);
+                return res.status(500).send("Failed to load orders");
+            }
+            const Transaction = require("../models/Transaction");
+            let list = results || [];
+
+            // default: only undelivered or refund requested
+            list = list.filter(o =>
+                (o.delivery_status || "PREPARING") !== "DELIVERED" ||
+                ((o.refundStatus || "NONE").toUpperCase() === "REQUESTED")
+            );
+
+            const withTxn = await Promise.all(
+                list.map(async (o) => {
+                    const txn = await new Promise((resolve) =>
+                        Transaction.getLatestByOrder(o.order_id, (e, row) => resolve(row || null))
+                    );
+                    return { ...o, latestTxn: txn };
+                })
+            );
+
+            res.render("adminFulfillment", {
+                orders: withTxn,
                 user: req.session.user
             });
         }));
@@ -151,7 +216,7 @@ const OrderController = {
 
     // Stats for profile page (already used in your profile controller)
     getStats: (userId, callback) => {
-        Order.getByUser(userId, (err, orders) => {
+        fetchUserOrders(userId, (err, orders) => {
             if (err) return callback(err, null);
 
             const totalOrders = orders.length;
