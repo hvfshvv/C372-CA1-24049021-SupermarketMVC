@@ -110,6 +110,10 @@ const Order = {
                 orders.order_date,
                 orders.payment_status,
                 orders.payment_method,
+                orders.refundStatus,
+                orders.refundReason,
+                orders.refundRequestedAt,
+                orders.refundReviewedAt,
                 users.username AS customer_name,
                 users.email
             FROM orders

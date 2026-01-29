@@ -20,6 +20,19 @@ const Transaction = {
         ];
 
         db.query(sql, values, callback);
+    },
+
+    getLatestByOrder(orderId, callback) {
+        const sql = `
+            SELECT * FROM transactions
+            WHERE orderId = ?
+            ORDER BY time DESC, id DESC
+            LIMIT 1
+        `;
+        db.query(sql, [orderId], (err, rows) => {
+            if (err) return callback(err);
+            callback(null, rows && rows[0] ? rows[0] : null);
+        });
     }
 
 };

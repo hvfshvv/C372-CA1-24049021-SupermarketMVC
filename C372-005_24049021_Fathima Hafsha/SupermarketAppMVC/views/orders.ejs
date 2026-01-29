@@ -1,6 +1,11 @@
 <%- include("partials/header"); %>
 
-<h2 class="fw-bold mb-4">My Orders</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold mb-0">My Orders</h2>
+    <a href="/refunds" class="btn btn-outline-danger">
+        <i class="bi bi-arrow-repeat me-1"></i> Go to Refund Center
+    </a>
+</div>
 
 <% if (!orders || orders.length === 0) { %>
 
@@ -21,32 +26,55 @@
                 <th>Invoice</th>
                 <th>Status</th>
                 <th>Method</th>
-                </tr>
-                </thead>
-                
-                <tbody>
-                    <% orders.forEach(o=> { %>
-                        <tr>
-                            <td>#<%= o.id %>
-                            </td>
-                            <td>
-                                <%= (new Date(o.order_date)).toLocaleString() %>
-                            </td>
-                            <td>$<%= Number(o.total_amount).toFixed(2) %>
-                            </td>
-                            <td>
-                                <a href="/invoice/<%= o.id %>" class="btn btn-outline-primary btn-sm">Download</a>
-                            </td>
-                            <td>
-                                <%= o.payment_status || 'PENDING' %>
-                            </td>
-                            <td>
-                                <%= o.payment_method || 'UNKNOWN' %>
-                            </td>
-                        </tr>
-                        <% }) %>
-                </tbody>
-                </table>
+            </tr>
+            </thead>
+            
+            <tbody>
+                <% orders.forEach(o=> { %>
+                    <tr>
+                        <td>#<%= o.id %>
+                        </td>
+                        <td>
+                            <%= (new Date(o.order_date)).toLocaleString() %>
+                        </td>
+                        <td>$<%= Number(o.total_amount).toFixed(2) %>
+                        </td>
+                        <td>
+                            <a href="/invoice/<%= o.id %>" class="btn btn-outline-primary btn-sm">Download</a>
+                        </td>
+                        <td>
+                            <% const status = (o.payment_status || 'PENDING').toUpperCase(); %>
+                            <span class="badge 
+                                <%= status==='PAID' ? 'bg-success' : '' %>
+                                <%= status==='PENDING' ? 'bg-secondary' : '' %>
+                                <%= status==='PARTIAL_REFUND' ? 'bg-warning text-dark' : '' %>
+                                <%= status==='REFUNDED' ? 'bg-danger' : '' %>">
+                                <%= status %>
+                            </span>
+                        </td>
+                        <td>
+                            <%= o.payment_method || 'UNKNOWN' %>
+                            <% if (o.payment_ref) { %>
+                                <div class="dropdown d-inline ms-1">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        Details
+                                    </button>
+                                    <div class="dropdown-menu p-3 small">
+                                        <div class="text-muted">Payment Ref:</div>
+                                        <div class="fw-bold"><%= o.payment_ref %></div>
+                                        <% if ((o.refundStatus || 'NONE') !== 'NONE') { %>
+                                            <hr class="my-2">
+                                            <div class="text-muted">Refund Status:</div>
+                                            <div><%= o.refundStatus %></div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }) %>
+            </tbody>
+            </table>
 
 </div>
 

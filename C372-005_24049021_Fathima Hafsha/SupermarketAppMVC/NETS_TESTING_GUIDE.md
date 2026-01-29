@@ -1,4 +1,5 @@
 # NETS QR Payment Testing Guide
+# NETS QR Payment Testing Guide
 
 ## Prerequisites
 1. ✅ You have a NETS sandbox account

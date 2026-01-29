@@ -1,258 +1,398 @@
-<%- include("partials/header"); %>
+﻿<%- include("partials/header"); %>
 
-    <div class="container mt-4 mb-5" style="max-width: 700px;">
+<div class="container py-4">
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h4 class="fw-bold mb-0">Your cart</h4>
+              <small class="text-muted">Review items before paying</small>
+            </div>
+          </div>
 
-        <h2 class="fw-bold mb-4 text-center">Checkout</h2>
-
-        <div class="card p-4 shadow-sm">
-
-            <h4 class="mb-3 fw-bold">Order Summary</h4>
-
-            <% cart.forEach(item=> { %>
-                <div class="d-flex justify-content-between border-bottom py-2">
-                    <div>
-                        <strong>
-                            <%= item.productName %>
-                        </strong><br>
-                        Quantity: <%= item.quantity %>
-                    </div>
-                    <div>
-                        $<%= (item.price * item.quantity).toFixed(2) %>
-                    </div>
+          <% cart.forEach(item=> { %>
+            <div class="d-flex align-items-center border rounded-3 p-2 mb-2">
+              <div class="ratio ratio-1x1 flex-shrink-0" style="width:64px;">
+                <img class="img-fluid rounded" src="<%= item.image || '/images/placeholder.png' %>" alt="<%= item.productName %>" onerror="this.src='/images/placeholder.png'">
+              </div>
+              <div class="ms-3 flex-grow-1">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong><%= item.productName %></strong>
+                    <div class="small text-muted">$<%= Number(item.price).toFixed(2) %> each</div>
+                  </div>
+                  <span class="badge bg-secondary">x<%= item.quantity %></span>
                 </div>
-                <% }); %>
-
-                    <div class="d-flex justify-content-between mt-3">
-                        <h4>Total:</h4>
-                        <h4 class="fw-bold">$<%= total.toFixed(2) %>
-                        </h4>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <!-- NETS QR PAYMENT -->
-                    <h5 class="fw-bold mb-3">Pay with NETS QR </h5>
-                    <div class="text-center mb-4">
-                        <button id="nets-generate"
-                            class="btn w-100 d-flex align-items-center justify-content-center gap-3 mx-auto mb-2"
-                            style="background:#ffe6eb; border:2px solid #e60c2f; color:#e60c2f; font-weight:700; height:50px; border-radius:10px; max-width:440px; padding:0 16px;">
-                            <svg width="90" height="22" viewBox="0 0 140 40" aria-label="NETS" role="img">
-                                <rect width="140" height="40" rx="6" fill="transparent"></rect>
-                                <text x="0" y="28" font-family="Arial Black, Arial, sans-serif" font-size="28" fill="#e60c2f">NE</text>
-                                <text x="52" y="28" font-family="Arial Black, Arial, sans-serif" font-size="28" fill="#004b99">T</text>
-                                <text x="77" y="28" font-family="Arial Black, Arial, sans-serif" font-size="28" fill="#e60c2f">S</text>
-                            </svg>
-                        </button>
-                        <div id="nets-status" class="text-muted small mb-2"></div>
-                        <div id="nets-qr-container" class="d-flex justify-content-center"></div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <!-- STRIPE PAYMENT -->
-                    <h5 class="fw-bold mb-3">Pay with Card (Stripe)</h5>
-                    <div class="text-center mb-4">
-                        <button id="stripe-pay"
-                            class="btn w-100 d-flex align-items-center justify-content-center gap-3 mx-auto shadow-sm"
-                            style="background:#eef0ff; border:2px solid #635bff; color:#635bff; font-weight:700; height:50px; border-radius:10px; max-width:440px; padding:0 16px;">
-                            <svg width="90" height="24" viewBox="0 0 160 48" aria-label="Stripe" role="img">
-                                <rect width="160" height="48" rx="6" fill="transparent"></rect>
-                                <text x="4" y="34" font-family="Arial Black, Arial, sans-serif" font-size="32" fill="#635bff">stripe</text>
-                            </svg>
-                        </button>
-                        <div id="stripe-status" class="text-muted small mt-2"></div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <!-- PAYPAL PAYMENT -->
-                    <h5 class="fw-bold mb-3">Pay with PayPal</h5>
-
-                    <div id="paypal-button-container"></div>
-
-                    <!-- PayPal SDK (Class style: uses env) -->
-                    <script
-                        src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=<%= currency %>&disable-funding=card"></script>
-                    <script src="https://js.stripe.com/v3"></script>
-
-                    <script>
-                        (function () {
-                            const netsBtn = document.getElementById("nets-generate");
-                            const netsStatus = document.getElementById("nets-status");
-                            const netsContainer = document.getElementById("nets-qr-container");
-                            const stripeBtn = document.getElementById("stripe-pay");
-                            const stripeStatus = document.getElementById("stripe-status");
-                            let pollHandle = null;
-
-                            function setStatus(message, isError = false) {
-                                netsStatus.textContent = message;
-                                netsStatus.classList.toggle("text-danger", !!isError);
-                                netsStatus.classList.toggle("text-muted", !isError);
-                            }
-
-                            async function startPoll(txnRef) {
-                                let attempts = 0;
-                                pollHandle = setInterval(async () => {
-                                    attempts++;
-                                    try {
-                                        const res = await fetch(`/api/nets/query?txn_retrieval_ref=${encodeURIComponent(txnRef)}`);
-                                        const data = await res.json();
-
-                                        if (data.status === "paid") {
-                                            clearInterval(pollHandle);
-                                            window.location.href = "/checkout/success?orderId=" + data.orderId;
-                                            return;
-                                        }
-
-                                        if (data.status === "failed") {
-                                            clearInterval(pollHandle);
-                                            setStatus(data.message || "NETS payment failed.", true);
-                                            netsBtn.disabled = false;
-                                            return;
-                                        }
-
-                                        if (attempts >= 20) {
-                                            clearInterval(pollHandle);
-                                            setStatus("Payment timed out. Please try again.", true);
-                                            netsBtn.disabled = false;
-                                        }
-                                    } catch (err) {
-                                        console.error("NETS poll error:", err);
-                                        clearInterval(pollHandle);
-                                        setStatus("Error checking payment status.", true);
-                                        netsBtn.disabled = false;
-                                    }
-                                }, 3000);
-                            }
-
-                            netsBtn?.addEventListener("click", async () => {
-                                if (pollHandle) clearInterval(pollHandle);
-
-                                netsBtn.disabled = true;
-                                netsContainer.innerHTML = "";
-                                setStatus("Requesting NETS QR...");
-
-                                try {
-                                    const res = await fetch("/api/nets/qr-request", {
-                                        method: "POST",
-                                        headers: {
-                                            "accept": "application/json"
-                                        }
-                                    });
-
-                                    const data = await res.json();
-
-                                    if (!res.ok || !data.qrDataUrl) {
-                                        const errorMsg = data?.error || "Unable to create NETS QR.";
-                                        throw new Error(String(errorMsg));
-                                    }
-
-                                    const img = document.createElement("img");
-                                    img.src = data.qrDataUrl;
-                                    img.alt = "NETS QR Code";
-                                    img.className = "img-fluid border p-2 bg-white";
-                                    img.style.maxWidth = "360px";
-                                    img.style.minWidth = "280px";
-                                    netsContainer.appendChild(img);
-
-                                    setStatus("Scan the QR with the NETS app to pay.");
-                                    startPoll(data.txn_retrieval_ref);
-                                } catch (err) {
-                                    console.error("NETS request error:", err);
-                                    setStatus(err.message, true);
-                                    netsBtn.disabled = false;
-                                }
-                            });
-
-                            // Stripe handler
-                            stripeBtn?.addEventListener("click", async () => {
-                                if (!"<%= stripePublishableKey %>" || !"<%= stripePublishableKey %>".startsWith("pk_")) {
-                                    stripeStatus.textContent = "Stripe not configured (need publishable pk_ key).";
-                                    stripeStatus.classList.add("text-danger");
-                                    return;
-                                }
-                                stripeBtn.disabled = true;
-                                stripeStatus.textContent = "Redirecting to Stripe...";
-                                try {
-                                    const res = await fetch("/api/stripe/create-session", {
-                                        method: "POST",
-                                        headers: { "accept": "application/json" }
-                                    });
-                                    const data = await res.json();
-                                    if (!res.ok || !data.id) throw new Error(data.error || "Stripe error");
-
-                                    const stripe = Stripe("<%= stripePublishableKey %>");
-                                    const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
-                                    if (error) throw error;
-                                } catch (err) {
-                                    console.error("Stripe error:", err);
-                                    stripeStatus.textContent = err.message || "Unable to start payment.";
-                                    stripeStatus.classList.add("text-danger");
-                                    stripeBtn.disabled = false;
-                                }
-                            });
-                        })();
-                    </script>
-
-                    <script>
-                    // Debug: Log the total value
-                    console.log("PayPal total value:", <%= total %>, "Type:", typeof <%= total %>);
-                    
-                    paypal.Buttons({
-                        style: {
-                            layout: 'vertical',
-                            shape: 'rect'
-                        },
-
-                    // call backend create-order with amount
-                    createOrder: function () {
-                        console.log("Creating PayPal order with amount:", <%= total.toFixed(2) %>);
-                        return fetch('/api/paypal/create-order', {
-                        method: 'post',
-                        headers: {
-                            'content-type': 'application/json',
-                            'accept': 'application/json'
-                        },
-                        body: JSON.stringify({ amount: <%= total.toFixed(2) %> })
-                        })
-                        .then(res => res.json())
-                        .then(data => data.id);
-                        },
-
-                        // call backend capture-order with PayPal orderID
-                        onApprove: function (data) {
-                        return fetch('/api/paypal/capture-order', {
-                        method: 'post',
-                        headers: {
-                            'content-type': 'application/json',
-                            'accept': 'application/json'
-                        },
-                        body: JSON.stringify({ orderID: data.orderID })
-                        })
-                        .then(res => res.json())
-                        .then(result => {
-                        
-                        if (result.success) {
-                        window.location.href = "/checkout/success?orderId=" + result.orderId;
-                        } else {
-                        alert(result.error || "Payment not completed.");
-              }
-            });
-        },
-
-    onCancel: function () {
-      alert("Payment cancelled.");
-    },
-
-    onError: function (err) {
-      console.error(err);
-      alert("PayPal error: " + err.message);
-    }
-
-  }).render('#paypal-button-container');
-</script>
-
+              </div>
+            </div>
+          <% }); %>
         </div>
+      </div>
     </div>
 
-    <%- include("partials/footer"); %>
+    <div class="col-lg-5">
+      <div class="card shadow-sm border-0 sticky-top" style="top: 90px;">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h5 class="fw-bold mb-0">Order summary</h5>
+              <small class="text-muted">All taxes included</small>
+            </div>
+            <span class="badge bg-info text-dark">
+              ETA: <%= eta ? eta.etaText || eta.etaLabel : 'Calculated at payment' %>
+            </span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Grand Total</span>
+            <h3 class="fw-bold text-success mb-0">$<%= total.toFixed(2) %></h3>
+          </div>
+          <div class="mb-3 p-2 rounded bg-light">
+            <div class="d-flex justify-content-between small text-muted">
+              <span>Items</span><span>$<%= total.toFixed(2) %></span>
+            </div>
+            <div class="d-flex justify-content-between small text-muted">
+              <span>Delivery & discounts</span><span>Applied at payment</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Delivery timing</label>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="deliveryType" value="NOW" id="deliverNow" checked>
+              <label class="form-check-label" for="deliverNow">Deliver now</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="deliveryType" value="SCHEDULED" id="deliverLater">
+              <label class="form-check-label" for="deliverLater">Schedule for later</label>
+            </div>
+            <div id="scheduleFields" class="row g-2 mt-2 d-none">
+              <div class="col-md-6">
+                <input type="date" id="scheduleDate" class="form-control" min="<%= new Date().toISOString().split('T')[0] %>">
+              </div>
+              <div class="col-md-6">
+                <select id="scheduleTime" class="form-select">
+                  <% for (let h=9; h<=21; h++) { for (let m of [0,15,30,45]) { const hh = h.toString().padStart(2,'0'); const mm = m.toString().padStart(2,'0'); %>
+                    <option value="<%= hh %>:<%= mm %>"><%= hh %>:<%= mm %></option>
+                  <% }} %>
+                </select>
+              </div>
+              <div class="col-12">
+                <div id="scheduleAlert" class="alert alert-danger py-2 px-3 d-none small"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Promo code</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-percent"></i></span>
+              <input type="text" class="form-control" id="promoCode" placeholder="Enter code e.g. SAVE10">
+              <button class="btn btn-outline-primary" id="applyPromo">Apply</button>
+            </div>
+            <div id="promoMsg" class="small text-muted mt-1"></div>
+          </div>
+
+          <h6 class="fw-bold mb-2">Choose payment method</h6>
+          <div class="list-group mb-3" id="method-list">
+            <label class="list-group-item d-flex align-items-center gap-3">
+              <input class="form-check-input flex-shrink-0" type="radio" name="payMethod" value="stripe" checked>
+              <div>
+                <div class="fw-bold">Card / Stripe Link</div>
+                <small class="text-muted">Pay securely with Stripe</small>
+              </div>
+              <i class="bi bi-shield-lock ms-auto text-primary"></i>
+            </label>
+            <label class="list-group-item d-flex align-items-center gap-3">
+              <input class="form-check-input flex-shrink-0" type="radio" name="payMethod" value="paypal">
+              <div>
+                <div class="fw-bold">PayPal</div>
+                <small class="text-muted">Use your PayPal balance or linked card</small>
+              </div>
+              <i class="bi bi-paypal ms-auto text-info"></i>
+            </label>
+            <label class="list-group-item d-flex align-items-center gap-3">
+              <input class="form-check-input flex-shrink-0" type="radio" name="payMethod" value="nets">
+              <div>
+                <div class="fw-bold">NETS QR</div>
+                <small class="text-muted">Scan and pay with the NETS app</small>
+              </div>
+              <i class="bi bi-qr-code ms-auto text-danger"></i>
+            </label>
+          </div>
+
+          <div class="pay-pane" data-method="stripe">
+            <h6 class="fw-bold mb-2">Pay with Card (Stripe)</h6>
+            <button id="stripe-pay"
+                class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 mx-auto shadow-sm btn-loading">
+                <span class="spinner-border spinner-border-sm d-none"></span>
+                <span>Pay securely</span>
+                <i class="bi bi-lock-fill"></i>
+            </button>
+            <div id="stripe-status" class="text-muted small mt-2"></div>
+          </div>
+
+          <div class="pay-pane d-none" data-method="paypal">
+            <h6 class="fw-bold mb-2">Pay with PayPal</h6>
+            <div id="paypal-button-container"></div>
+          </div>
+
+          <div class="pay-pane d-none" data-method="nets">
+            <h6 class="fw-bold mb-2">Pay with NETS QR</h6>
+            <button id="nets-generate"
+                class="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 mx-auto mb-2 btn-loading">
+                <span class="spinner-border spinner-border-sm d-none"></span>
+                <span>Generate NETS QR</span>
+                <i class="bi bi-qr-code"></i>
+            </button>
+            <div id="nets-status" class="text-muted small mb-2"></div>
+            <div id="nets-qr-container" class="d-flex justify-content-center"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SDKs -->
+<script src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=<%= currency %>&disable-funding=card"></script>
+<script src="https://js.stripe.com/v3"></script>
+
+<script>
+    (function () {
+        const methodRadios = document.querySelectorAll('input[name="payMethod"]');
+        const panes = document.querySelectorAll('.pay-pane');
+        const netsBtn = document.getElementById("nets-generate");
+        const netsStatus = document.getElementById("nets-status");
+        const netsContainer = document.getElementById("nets-qr-container");
+        const stripeBtn = document.getElementById("stripe-pay");
+        const stripeStatus = document.getElementById("stripe-status");
+        const promoInput = document.getElementById("promoCode");
+        const promoMsg = document.getElementById("promoMsg");
+        const applyPromoBtn = document.getElementById("applyPromo");
+        const deliveryRadios = document.querySelectorAll('input[name="deliveryType"]');
+        const scheduleFields = document.getElementById("scheduleFields");
+        const scheduleDate = document.getElementById("scheduleDate");
+        const scheduleTime = document.getElementById("scheduleTime");
+        const scheduleAlert = document.getElementById("scheduleAlert");
+        let pollHandle = null;
+        let promoApplied = null;
+
+        function showPane(method) {
+            panes.forEach(p => p.classList.toggle("d-none", p.dataset.method !== method));
+        }
+        methodRadios.forEach(r => r.addEventListener("change", () => showPane(r.value)));
+        showPane("stripe");
+
+        deliveryRadios.forEach(r => r.addEventListener("change", () => {
+            const isScheduled = r.value === "SCHEDULED" && r.checked;
+            scheduleFields.classList.toggle("d-none", !isScheduled);
+        }));
+
+        function getDeliverySelection() {
+            const selected = document.querySelector('input[name="deliveryType"]:checked')?.value || "NOW";
+            if (selected === "SCHEDULED") {
+                const d = scheduleDate.value;
+                const t = scheduleTime.value;
+                return { deliveryType: "SCHEDULED", scheduledAt: d && t ? `${d}T${t}:00` : null };
+            }
+            return { deliveryType: "NOW", scheduledAt: null };
+        }
+
+        function validateSchedule() {
+            const sel = getDeliverySelection();
+            if (sel.deliveryType !== "SCHEDULED") return true;
+            if (!sel.scheduledAt) {
+                scheduleAlert.textContent = "Pick a date and time.";
+                scheduleAlert.classList.remove("d-none");
+                return false;
+            }
+            const sched = new Date(sel.scheduledAt);
+            const min = new Date(Date.now() + 45 * 60000);
+            if (sched < min) {
+                scheduleAlert.textContent = "Scheduled time must be at least 45 minutes from now.";
+                scheduleAlert.classList.remove("d-none");
+                return false;
+            }
+            scheduleAlert.classList.add("d-none");
+            return true;
+        }
+
+        function getCommonPayload() {
+            return {
+                promoCode: promoApplied || promoInput.value || "",
+                ...getDeliverySelection()
+            };
+        }
+
+        applyPromoBtn?.addEventListener("click", (e) => {
+            e.preventDefault();
+            promoApplied = promoInput.value.trim();
+            promoMsg.textContent = promoApplied ? `Will apply: ${promoApplied}` : "";
+        });
+
+        function setStatus(message, isError = false) {
+            netsStatus.textContent = message;
+            netsStatus.classList.toggle("text-danger", !!isError);
+            netsStatus.classList.toggle("text-muted", !isError);
+        }
+
+        async function startPoll(txnRef) {
+            let attempts = 0;
+            pollHandle = setInterval(async () => {
+                attempts++;
+                try {
+                    const res = await fetch(`/api/nets/query?txn_retrieval_ref=${encodeURIComponent(txnRef)}`);
+                    const data = await res.json();
+
+                    if (data.status === "paid") {
+                        clearInterval(pollHandle);
+                        window.location.href = "/checkout/success?orderId=" + data.orderId;
+                        return;
+                    }
+
+                    if (data.status === "failed") {
+                        clearInterval(pollHandle);
+                        setStatus(data.message || "NETS payment failed.", true);
+                        netsBtn.disabled = false;
+                        return;
+                    }
+
+                    if (attempts >= 20) {
+                        clearInterval(pollHandle);
+                        setStatus("Payment timed out. Please try again.", true);
+                        netsBtn.disabled = false;
+                    }
+                } catch (err) {
+                    console.error("NETS poll error:", err);
+                    clearInterval(pollHandle);
+                    setStatus("Error checking payment status.", true);
+                    netsBtn.disabled = false;
+                }
+            }, 3000);
+        }
+
+        netsBtn?.addEventListener("click", async () => {
+            if (!validateSchedule()) return;
+            if (pollHandle) clearInterval(pollHandle);
+
+            netsBtn.disabled = true;
+            netsContainer.innerHTML = "";
+            setStatus("Requesting NETS QR...");
+
+            try {
+                const res = await fetch("/api/nets/qr-request", {
+                    method: "POST",
+                    headers: { "accept": "application/json", "content-type": "application/json" },
+                    body: JSON.stringify(getCommonPayload())
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || !data.qrDataUrl) {
+                    const errorMsg = data?.error || "Unable to create NETS QR.";
+                    throw new Error(String(errorMsg));
+                }
+
+                const img = document.createElement("img");
+                img.src = data.qrDataUrl;
+                img.alt = "NETS QR Code";
+                img.className = "img-fluid border p-2 bg-white";
+                img.style.maxWidth = "360px";
+                img.style.minWidth = "280px";
+                netsContainer.appendChild(img);
+
+                setStatus("Scan the QR with the NETS app to pay.");
+                startPoll(data.txn_retrieval_ref);
+            } catch (err) {
+                console.error("NETS request error:", err);
+                setStatus(err.message, true);
+                netsBtn.disabled = false;
+            }
+        });
+
+        // Stripe handler
+        stripeBtn?.addEventListener("click", async () => {
+            if (!validateSchedule()) return;
+            if (!"<%= stripePublishableKey %>" || !"<%= stripePublishableKey %>".startsWith("pk_")) {
+                stripeStatus.textContent = "Stripe not configured (need publishable pk_ key).";
+                stripeStatus.classList.add("text-danger");
+                return;
+            }
+            stripeBtn.disabled = true;
+            stripeStatus.textContent = "Redirecting to Stripe...";
+            try {
+                const res = await fetch("/api/stripe/create-session", {
+                    method: "POST",
+                    headers: { "accept": "application/json", "content-type": "application/json" },
+                    body: JSON.stringify(getCommonPayload())
+                });
+                const data = await res.json();
+                if (!res.ok || !data.id) throw new Error(data.error || "Stripe error");
+
+                const stripe = Stripe("<%= stripePublishableKey %>");
+                const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
+                if (error) throw error;
+            } catch (err) {
+                console.error("Stripe error:", err);
+                stripeStatus.textContent = err.message || "Unable to start payment.";
+                stripeStatus.classList.add("text-danger");
+                stripeBtn.disabled = false;
+            }
+        });
+
+        // expose to PayPal block
+        window.checkoutShared = {
+            validateSchedule,
+            getCommonPayload
+        };
+    })();
+</script>
+
+<script>
+// PayPal Buttons
+paypal.Buttons({
+    style: { layout: 'vertical', shape: 'rect' },
+    createOrder: function () {
+        if (window.checkoutShared && !window.checkoutShared.validateSchedule()) return;
+        return fetch('/api/paypal/create-order', {
+            method: 'post',
+            headers: {
+                'content-type': 'application/json',
+                'accept': 'application/json'
+            },
+            body: JSON.stringify({ amount: <%= total.toFixed(2) %>, ...(window.checkoutShared?.getCommonPayload?.() || {}) })
+        })
+        .then(res => res.json())
+        .then(data => data.id);
+    },
+    onApprove: function (data) {
+        return fetch('/api/paypal/capture-order', {
+            method: 'post',
+            headers: {
+                'content-type': 'application/json',
+                'accept': 'application/json'
+            },
+            body: JSON.stringify({ orderID: data.orderID })
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success) {
+                window.location.href = "/checkout/success?orderId=" + result.orderId;
+            } else {
+                alert(result.error || "Payment not completed.");
+            }
+        });
+    },
+    onCancel: function () {
+        alert("Payment cancelled.");
+    },
+    onError: function (err) {
+        console.error(err);
+        alert("PayPal error: " + err.message);
+    }
+}).render('#paypal-button-container');
+</script>
+
+<%- include("partials/footer"); %>

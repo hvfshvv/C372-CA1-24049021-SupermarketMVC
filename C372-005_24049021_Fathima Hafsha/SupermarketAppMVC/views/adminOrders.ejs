@@ -17,6 +17,8 @@
                     <th>Invoice</th>
                     <th>Status</th>
                     <th>Method</th>
+                    <th>Refund Action</th>
+                    <th>Requests</th>
                 </tr>
             </thead>
 
@@ -33,8 +35,57 @@
                                 View Invoice
                             </a>
                         </td>
-                        <td><%= o.payment_status || 'PENDING' %></td>
-                        <td><%= o.payment_method || 'UNKNOWN' %></td>
+                        <td>
+                            <% const ps = (o.payment_status || 'PENDING').toUpperCase(); %>
+                            <span class="badge <%= ps==='PAID'?'bg-success':ps==='PENDING'?'bg-secondary':ps==='REFUNDED'?'bg-danger':'bg-warning text-dark' %>"><%= ps %></span>
+                        </td>
+                        <td><span class="badge bg-outline-dark text-dark"><%= o.payment_method || 'UNKNOWN' %></span></td>
+                        <td style="min-width:220px;">
+                            <% const pendingReq = o.refundStatus === 'REQUESTED'; %>
+                            <% const refundable = o.payment_status === 'PAID' && (o.payment_method === 'STRIPE' || o.payment_method === 'PAYPAL'); %>
+
+                            <% if (pendingReq) { %>
+                                <div class="alert alert-warning p-2 mb-2 small">
+                                    Pending request: <strong><%= o.refundReason || (o.latestTxn && o.latestTxn.refund_status) || '' %></strong>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    <form action="/admin/refund/process/<%= o.order_id %>" method="POST">
+                                        <input type="hidden" name="reason" value="<%= o.refundReason || (o.latestTxn && o.latestTxn.refund_status) || '' %>">
+                                        <button class="btn btn-danger btn-sm w-100 mb-1" name="mode" value="full">Approve Full</button>
+                                        <button class="btn btn-outline-danger btn-sm w-100" name="mode" value="partial">Approve Partial</button>
+                                    </form>
+                                    <form action="/admin/refund/reject/<%= o.order_id %>" method="POST">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="reason" class="form-control" placeholder="Reason to reject" required>
+                                            <button class="btn btn-outline-secondary">Reject</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            <% } else if (o.refundStatus && o.refundStatus !== 'NONE') { %>
+                                <div class="small text-muted">
+                                    Refund: <%= o.refundStatus %>
+                                    <% if (o.latestTxn && o.latestTxn.refund_status) { %>
+                                        — <%= o.latestTxn.refund_status %>
+                                    <% } else if (o.refundReason) { %>
+                                        — <%= o.refundReason %>
+                                    <% } %>
+                                </div>
+                            <% } else if (refundable) { %>
+                                <span class="text-muted small">No request yet</span>
+                            <% } else if ((o.payment_status || '').includes('REFUND')) { %>
+                                <span class="badge bg-secondary">Already refunded</span>
+                            <% } else { %>
+                                <span class="text-muted small">N/A</span>
+                            <% } %>
+                        </td>
+                        <td style="min-width:180px;">
+                            <% if (pendingReq) { %>
+                                <div class="text-warning small fw-bold">User requested refund</div>
+                                <div class="small text-muted"><%= o.latestTxn.refund_status %></div>
+                            <% } else { %>
+                                <span class="text-muted small">None</span>
+                            <% } %>
+                        </td>
                     </tr>
                 <% }) %>
             </tbody>

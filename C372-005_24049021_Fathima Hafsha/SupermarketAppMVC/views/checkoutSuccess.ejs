@@ -1,64 +1,117 @@
-<%- include("partials/header"); %>
+﻿<%- include("partials/header"); %>
 
-<div class="container mt-5" style="max-width: 850px;">
+<div class="container py-5" style="max-width: 960px;">
+  <div class="text-center mb-4">
+    <div class="display-5 text-success mb-2"><i class="bi bi-check-circle-fill"></i></div>
+    <h2 class="fw-bold">Payment Successful</h2>
+    <p class="text-muted mb-0">Thank you for shopping with us, <%= user.username %>!</p>
+  </div>
 
-    <div class="text-center mb-4">
-        <h2 class="fw-bold">🎉 Payment Successful</h2>
-        <p class="text-muted">Thank you for shopping with us, <%= user.username %>!</p>
+  <% if (order) { %>
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <small class="text-muted">Order ID</small>
+                <div class="fw-bold fs-5">#<%= order.id %></div>
+              </div>
+              <span class="badge bg-success"><%= order.payment_status || 'PAID' %></span>
+            </div>
+            <p class="mb-1"><i class="bi bi-calendar3 me-1"></i> <%= new Date(order.order_date).toLocaleString() %></p>
+            <p class="mb-1"><i class="bi bi-credit-card me-1"></i> <strong><%= order.payment_method || 'UNKNOWN' %></strong></p>
+            <% if (order.payment_ref) { %>
+              <p class="mb-1"><i class="bi bi-hash me-1"></i> <code><%= order.payment_ref %></code></p>
+            <% } %>
+            <p class="mb-1"><i class="bi bi-truck me-1"></i>
+              <span class="badge bg-info text-dark">
+                <%= order.delivery_type === 'SCHEDULED' && order.scheduledAt ? 'Scheduled ' + new Date(order.scheduledAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Deliver now' %>
+              </span>
+              <% if (order.eta_min || order.eta_max) { %>
+                <small class="text-muted ms-2">ETA <%= order.eta_min || '?' %>-<%= order.eta_max || '?' %> mins</small>
+              <% } %>
+            </p>
+            <hr>
+            <h6 class="fw-bold mb-2">Delivery tracking</h6>
+            <div id="tracking-steps" class="d-flex gap-2 flex-wrap">
+              <span class="badge bg-secondary" data-step="PREPARING">Preparing</span>
+              <span class="badge bg-secondary" data-step="OUT_FOR_DELIVERY">Out for delivery</span>
+              <span class="badge bg-secondary" data-step="DELIVERED">Delivered</span>
+            </div>
+            <div class="small text-muted mt-2" id="tracking-meta"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h5 class="fw-bold mb-0">Items</h5>
+              <span class="badge bg-success">Paid $<%= Number(order.total_amount).toFixed(2) %></span>
+            </div>
+            <div class="list-group list-group-flush">
+              <% items.forEach(item => { %>
+                <div class="list-group-item d-flex align-items-center">
+                  <div class="ratio ratio-1x1 me-3" style="width:56px;">
+                    <img class="img-fluid rounded" src="<%= item.image || '/images/placeholder.png' %>" alt="<%= item.product_name %>" onerror="this.src='/images/placeholder.png'">
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold"><%= item.product_name %></div>
+                    <div class="text-muted small">$<%= Number(item.price).toFixed(2) %> each</div>
+                  </div>
+                  <span class="badge bg-secondary me-3">x<%= item.quantity %></span>
+                  <div class="fw-bold">$<%= (item.price * item.quantity).toFixed(2) %></div>
+                </div>
+              <% }); %>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <a href="/orders" class="btn btn-outline-secondary"><i class="bi bi-receipt-cutoff me-1"></i> View order</a>
+              <a href="/shopping" class="btn btn-primary"><i class="bi bi-shop me-1"></i> Continue shopping</a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <% if (order) { %>
-    <div class="card shadow-lg p-4 rounded-4">
-
-        <h5 class="fw-bold text-primary mb-3">Order Details</h5>
-
-        <div class="bg-light rounded-4 p-3 mb-3">
-            <p class="mb-1">Order ID: <strong>#<%= order.id %></strong></p>
-            <p class="mb-0">Placed On: <%= new Date(order.order_date).toLocaleString() %></p>
-        </div>
-
-        <h5 class="fw-bold text-primary">Order Summary</h5>
-
-        <div class="table-responsive mt-3">
-            <table class="table table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Product</th>
-                        <th>Price ($)</th>
-                        <th>Qty</th>
-                        <th>Total ($)</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <% items.forEach(i => { %>
-                    <tr>
-                        <td><%= i.product_name %></td>
-                        <td><%= Number(i.price).toFixed(2) %></td>
-                        <td><%= i.quantity %></td>
-                        <td><%= (i.price * i.quantity).toFixed(2) %></td>
-                    </tr>
-                    <% }) %>
-                </tbody>
-            </table>
-        </div>
-
-        <h4 class="text-end fw-bold mt-3">
-            Grand Total: $<%= Number(order.total_amount).toFixed(2) %>
-        </h4>
-
-        <div class="text-center mt-4">
-            <a href="/invoice/<%= order.id %>" class="btn btn-primary px-4 rounded-4">Download Invoice</a>
-            <a href="/orders" class="btn btn-outline-secondary px-4 rounded-4 ms-2">View Orders</a>
-            <a href="/shopping" class="btn btn-success px-4 rounded-4 ms-2">Continue Shopping</a>
-        </div>
-
-    </div>
-
-    <% } else { %>
-        <p class="text-center text-danger fw-bold">Order not found.</p>
-    <% } %>
-
+  <% } else { %>
+    <div class="alert alert-warning">Order not found.</div>
+  <% } %>
 </div>
 
 <%- include("partials/footer"); %>
+<script>
+(function(){
+  const orderId = <%= order ? order.id : 'null' %>;
+  if(!orderId) return;
+  const badges = document.querySelectorAll('#tracking-steps .badge');
+  const meta = document.getElementById('tracking-meta');
+  const stepOrder = ['PREPARING','OUT_FOR_DELIVERY','DELIVERED'];
+  const endpoint = `/api/orders/${orderId}/tracking`;
+
+  function renderStatus(status, updatedAt, etaText){
+    badges.forEach(b => {
+      const step = b.dataset.step;
+      const idx = stepOrder.indexOf(step);
+      const cur = stepOrder.indexOf(status);
+      b.classList.remove('bg-secondary','bg-info','bg-success');
+      if(cur === idx){ b.classList.add('bg-info'); }
+      else if(cur > idx){ b.classList.add('bg-success'); }
+      else { b.classList.add('bg-secondary'); }
+    });
+    meta.textContent = `${status} • Updated ${updatedAt ? new Date(updatedAt).toLocaleString() : 'just now'}${etaText ? ' • ' + etaText : ''}`;
+  }
+
+  async function poll(){
+    try {
+      const res = await fetch(endpoint);
+      if(!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      renderStatus(data.status || 'PREPARING', data.updatedAt, data.etaText);
+    } catch(e){ console.warn('tracking poll error', e.message); }
+  }
+
+  poll();
+  setInterval(poll, 10000);
+})();
+</script>

@@ -17,8 +17,11 @@ const UserController = require('./controllers/userController');
 const InvoiceController = require('./controllers/invoiceController.js');
 const OrderController = require('./controllers/orderController');
 const NetsController = require('./controllers/netsController');
+const SubscriptionController = require('./controllers/subscriptionController');
+const RefundController = require('./controllers/refundController');
 const Product = require('./models/Product');
 const paypal = require('./services/paypal');
+const { computeTotalWithBenefits } = require('./services/benefits');
 const Cart = require('./models/Cart');
 const Order = require('./models/Order');
 const Transaction = require("./models/Transaction");
@@ -65,7 +68,14 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+// Preserve raw body for Stripe webhook signature verification
+app.use(express.json({
+    verify: (req, res, buf) => {
+        if (req.originalUrl === '/webhook/stripe') {
+            req.rawBody = buf.toString();
+        }
+    }
+}));
 app.use(methodOverride('_method'));
 
 app.use((req, res, next) => {
@@ -117,12 +127,13 @@ const checkAuthenticated = (req, res, next) => {
 };
 
 const ensure2FA = (req, res, next) => {
-    if (!req.session.user) return res.redirect("/login");
-    if (!req.session.user.twofa_enabled) {
-        req.flash("error", "Please enable 2FA first.");
-        return res.redirect("/2fa/setup");
-    }
-    next();
+    // Demo bypass: comment this block back in to re-enable enforcement
+    // if (!req.session.user) return res.redirect("/login");
+    // if (!req.session.user.twofa_enabled) {
+    //     req.flash("error", "Please enable 2FA first.");
+    //     return res.redirect("/2fa/setup");
+    // }
+    return next();
 };
 
 const checkAdmin = (req, res, next) => {
@@ -139,7 +150,8 @@ async function createOrderFromCart(userId, options = {}) {
         paymentRef = null,
         payerEmail = null,
         paidAt = null,
-        clearCart = true
+        clearCart = true,
+        forceTotal = null
     } = options;
 
     const cart = await new Promise((resolve, reject) => {
@@ -151,7 +163,8 @@ async function createOrderFromCart(userId, options = {}) {
 
     if (!cart.length) throw new Error("Cart empty");
 
-    const total = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+    const computed = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+    const total = forceTotal !== null ? forceTotal : computed;
 
     const orderId = await new Promise((resolve, reject) => {
         Order.create(
@@ -182,6 +195,111 @@ async function createOrderFromCart(userId, options = {}) {
     }
 
     return { orderId, cart, total };
+}
+
+// Helper: find latest order by payment_ref (used for Stripe/PayPal webhooks & fallbacks)
+async function findOrderByPaymentRef(paymentRef) {
+    if (!paymentRef) return null;
+    return new Promise((resolve, reject) => {
+        db.query(
+            `SELECT id, user_id, total_amount, payment_status 
+             FROM orders WHERE payment_ref = ? 
+             ORDER BY order_date DESC LIMIT 1`,
+            [paymentRef],
+            (err, rows) => (err ? reject(err) : resolve(rows?.[0] || null))
+        );
+    });
+}
+
+// Helper: update an order's payment status/details in one place
+async function markOrderPayment(orderId, { status, method = 'UNKNOWN', ref, payerEmail, paidAt = new Date() }) {
+    return new Promise((resolve, reject) => {
+        db.query(
+            `UPDATE orders 
+             SET payment_status=?, payment_method=?, payment_ref=COALESCE(?, payment_ref), payer_email=COALESCE(?, payer_email), paid_at=IFNULL(paid_at, ?), delivery_status=IFNULL(delivery_status,'PREPARING')
+             WHERE id=?`,
+            [status, method, ref || null, payerEmail || null, paidAt, orderId],
+            (err) => (err ? reject(err) : resolve())
+        );
+    });
+}
+
+// Helper: record transaction row (best-effort; ignore duplicate failures)
+async function recordTransactionSafe(data) {
+    return new Promise((resolve) => {
+        Transaction.create(data, (err) => {
+            if (err) console.error("Transaction insert error:", err);
+            resolve();
+        });
+    });
+}
+
+// Helper: store delivery / promo extras (best-effort, ignore if columns not present)
+async function updateOrderExtras(orderId, extras = {}) {
+    if (!orderId) return;
+    const {
+        deliveryType = null,
+        scheduledAt = null,
+        etaMin = null,
+        etaMax = null,
+        promoCode = null,
+        promoDiscount = null
+    } = extras;
+    const sql = `
+        UPDATE orders SET 
+            delivery_type = COALESCE(?, delivery_type),
+            scheduledAt = COALESCE(?, scheduledAt),
+            eta_min = COALESCE(?, eta_min),
+            eta_max = COALESCE(?, eta_max),
+            promoCode = COALESCE(?, promoCode),
+            promoDiscount = COALESCE(?, promoDiscount)
+        WHERE id = ?`;
+    return new Promise((resolve) => {
+        db.query(sql, [deliveryType, scheduledAt, etaMin, etaMax, promoCode, promoDiscount, orderId], (err) => {
+            if (err) console.warn("updateOrderExtras warning (ignore if column missing):", err.message);
+            resolve();
+        });
+    });
+}
+
+// Helper: sync payment intent updates (Stripe success/fail)
+async function syncStripePaymentIntent(pi, desiredStatus = "PAID") {
+    if (!pi || !pi.id) return;
+    const paymentRef = pi.id;
+    const payerEmail =
+        pi.charges?.data?.[0]?.billing_details?.email ||
+        pi.receipt_email ||
+        null;
+    const amount =
+        (pi.amount_received || pi.amount || 0) / 100;
+    const currency = (pi.currency || "sgd").toUpperCase();
+
+    const order = await findOrderByPaymentRef(paymentRef);
+    if (!order) return;
+
+    await markOrderPayment(order.id, {
+        status: desiredStatus,
+        method: "STRIPE",
+        ref: paymentRef,
+        payerEmail,
+        paidAt: new Date()
+    });
+
+    if (desiredStatus === "PAID" && order.user_id) {
+        await new Promise((resolve) => Cart.clearCart(order.user_id, () => resolve()));
+    }
+
+    await recordTransactionSafe({
+        orderId: String(order.id),
+        payerId: paymentRef,
+        payerEmail,
+        amount,
+        currency,
+        status: desiredStatus,
+        time: new Date(),
+        paymentMethod: "STRIPE",
+        paymentRef
+    });
 }
 
 
@@ -288,6 +406,10 @@ app.post('/api/stripe/create-session', checkAuthenticated, async (req, res) => {
         if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
 
         const userId = req.session.user.id;
+        const { deliveryType = "NOW", scheduledAt = null, promoCode = "" } = req.body || {};
+        const Delivery = require("./services/deliveryService");
+        const Promo = require("./services/promoService");
+
         const cart = await new Promise((resolve, reject) => {
             Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
         });
@@ -302,23 +424,76 @@ app.post('/api/stripe/create-session', checkAuthenticated, async (req, res) => {
             quantity: Number(item.quantity),
         }));
 
-        const total = cart.reduce(
-            (sum, item) => sum + Number(item.price) * Number(item.quantity),
-            0
-        );
+        const benefits = await computeTotalWithBenefits(userId, cart);
+        const promo = Promo.applyPromo(promoCode, benefits.base);
+        const promoDiscount = promo.applied ? promo.discount : 0;
+        const total = Math.max(0.5, benefits.base + benefits.deliveryFee - benefits.discount - promoDiscount);
+
+        if (deliveryType === "SCHEDULED") {
+            const check = Delivery.validateSchedule(scheduledAt);
+            if (!check.valid) return res.status(400).json({ error: check.message });
+        }
 
         const session = await stripe.checkout.sessions.create({
             mode: "payment",
             // Allow both standard card entry and Stripe Link wallet
             payment_method_types: ["card", "link"],
             line_items,
+            metadata: { userId: String(userId), deliveryType, scheduledAt: scheduledAt || "", promoCode: promoCode || "" },
+            payment_intent_data: {
+                metadata: { userId: String(userId), deliveryType, scheduledAt: scheduledAt || "", promoCode: promoCode || "" }
+            },
             success_url: `${req.protocol}://${req.get("host")}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${req.protocol}://${req.get("host")}/checkout`,
             customer_email: req.session.user.email,
         });
 
+        const paymentIntentId =
+            typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : session.payment_intent?.id;
+
+        // Create or reuse a pending order tied to this payment intent
+        let pendingOrderId = null;
+        try {
+            const existing = await findOrderByPaymentRef(paymentIntentId || session.id);
+            if (existing) {
+                pendingOrderId = existing.id;
+            } else {
+                const pending = await createOrderFromCart(userId, {
+                    paymentMethod: "STRIPE",
+                    paymentStatus: "PENDING",
+                    paymentRef: paymentIntentId || session.id,
+                    payerEmail: req.session.user.email,
+                    clearCart: false, // keep cart intact until payment is confirmed
+                    forceTotal: total
+                });
+                pendingOrderId = pending.orderId;
+                await updateOrderExtras(pendingOrderId, {
+                    deliveryType,
+                    scheduledAt: deliveryType === "SCHEDULED" ? scheduledAt : null,
+                    etaMin: Delivery.computeETA({ deliveryType, scheduledAt, total }).etaMinMinutes || null,
+                    etaMax: Delivery.computeETA({ deliveryType, scheduledAt, total }).etaMaxMinutes || null,
+                    promoCode: promoCode || null,
+                    promoDiscount
+                });
+            }
+        } catch (orderErr) {
+            console.error("Unable to create pending Stripe order:", orderErr);
+        }
+
         // keep snapshot so we can rebuild order even if cart is cleared before return
-        req.session.stripePending = { sessionId: session.id, total, cartSnapshot: cart };
+        req.session.stripePending = {
+            sessionId: session.id,
+            total,
+            cartSnapshot: cart,
+            orderId: pendingOrderId,
+            paymentIntentId: paymentIntentId || null,
+            deliveryType,
+            scheduledAt,
+            promoCode,
+            promoDiscount
+        };
         res.json({ id: session.id, url: session.url });
     } catch (err) {
         console.error("Stripe create-session error:", err);
@@ -382,85 +557,108 @@ app.get('/stripe/success', checkAuthenticated, async (req, res) => {
         }
 
         const userId = req.session.user.id;
+        const payerEmail = session.customer_details?.email || req.session.user.email;
+        const paymentRef = paymentIntentId || session.id;
         let orderId, total;
-        try {
-            const meta = await createOrderFromCart(userId, {
-                paymentMethod: "STRIPE",
-                paymentStatus: "PAID",
-                paymentRef: paymentIntentId || session.id,
-                payerEmail: session.customer_details?.email || req.session.user.email,
+
+        const existing = await findOrderByPaymentRef(paymentRef);
+        if (existing) {
+            orderId = existing.id;
+            total = Number(existing.total_amount) || 0;
+            await markOrderPayment(orderId, {
+                status: "PAID",
+                method: "STRIPE",
+                ref: paymentRef,
+                payerEmail,
                 paidAt: new Date(),
             });
-            orderId = meta.orderId;
-            total = meta.total;
-        } catch (cartErr) {
-            // fallback: rebuild order from snapshot if cart was emptied
-            let snap = req.session.stripePending?.cartSnapshot || [];
-            // fallback 2: rebuild from Stripe line items
-            if (!snap.length && Array.isArray(session.line_items?.data)) {
-                snap = session.line_items.data.map(li => ({
-                    product_id: 0, // unknown in Stripe; store as 0
-                    productName: li.description || "Stripe Item",
-                    price: (li.price?.unit_amount || 0) / 100,
-                    quantity: li.quantity || 1,
-                }));
-            }
-            if (!snap.length) {
-                console.error("Stripe fallback failed, no cart snapshot or line items", cartErr);
-                throw cartErr;
-            }
-
-            total = snap.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0);
-            orderId = await new Promise((resolve, reject) => {
-                Order.create(
-                    userId,
-                    total,
-                    {
-                        paymentMethod: "STRIPE",
-                        paymentStatus: "PAID",
-                        paymentRef: paymentIntentId || session.id,
-                        payerEmail: session.customer_details?.email || req.session.user.email,
-                        paidAt: new Date(),
-                    },
-                    (err2, id) => (err2 ? reject(err2) : resolve(id))
-                );
+            await updateOrderExtras(orderId, {
+                deliveryType: existing.delivery_type || null,
+                scheduledAt: existing.scheduledAt || null
             });
-            for (const item of snap) {
-                await new Promise((resolve, reject) => {
-                    Order.addItem(
-                        orderId,
-                        item.product_id,
-                        item.productName,
-                        item.price,
-                        item.quantity,
-                        (err2) => (err2 ? reject(err2) : resolve())
+            await new Promise((resolve) => Cart.clearCart(userId, () => resolve()));
+        } else {
+            try {
+                const meta = await createOrderFromCart(userId, {
+                    paymentMethod: "STRIPE",
+                    paymentStatus: "PAID",
+                    paymentRef,
+                    payerEmail,
+                    paidAt: new Date(),
+                });
+                orderId = meta.orderId;
+                total = meta.total;
+            } catch (cartErr) {
+                // fallback: rebuild order from snapshot if cart was emptied
+                let snap = req.session.stripePending?.cartSnapshot || [];
+                // fallback 2: rebuild from Stripe line items
+                if (!snap.length && Array.isArray(session.line_items?.data)) {
+                    snap = session.line_items.data.map(li => ({
+                        product_id: 0, // unknown in Stripe; store as 0
+                        productName: li.description || "Stripe Item",
+                        price: (li.price?.unit_amount || 0) / 100,
+                        quantity: li.quantity || 1,
+                    }));
+                }
+                if (!snap.length) {
+                    console.error("Stripe fallback failed, no cart snapshot or line items", cartErr);
+                    throw cartErr;
+                }
+
+                total = snap.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0);
+                orderId = await new Promise((resolve, reject) => {
+                    Order.create(
+                        userId,
+                        total,
+                        {
+                            paymentMethod: "STRIPE",
+                            paymentStatus: "PAID",
+                            paymentRef,
+                            payerEmail,
+                            paidAt: new Date(),
+                        },
+                        (err2, id) => (err2 ? reject(err2) : resolve(id))
                     );
                 });
-            }
-        }
-
-        console.log("Order created:", { orderId, total });
-
-        Transaction.create(
-            {
-                orderId: String(orderId),
-                payerId: paymentIntentId || session.id,
-                payerEmail: session.customer_details?.email || req.session.user.email,
-                amount: total,
-                currency: "SGD",
-                status: "PAID",
-                time: new Date(),
-                paymentMethod: "STRIPE",
-                paymentRef: paymentIntentId || session.id,
-            },
-            (txnErr) => {
-                if (txnErr) {
-                    console.error("Transaction insert error:", txnErr);
-                } else {
-                    console.log("Transaction recorded for orderId:", orderId);
+                for (const item of snap) {
+                    await new Promise((resolve, reject) => {
+                        Order.addItem(
+                            orderId,
+                            item.product_id,
+                            item.productName,
+                            item.price,
+                            item.quantity,
+                            (err2) => (err2 ? reject(err2) : resolve())
+                        );
+                    });
                 }
             }
-        );
+
+            await updateOrderExtras(orderId, {
+                deliveryType: req.session.stripePending?.deliveryType || "NOW",
+                scheduledAt: req.session.stripePending?.scheduledAt || null,
+                promoCode: req.session.stripePending?.promoCode || null,
+                promoDiscount: req.session.stripePending?.promoDiscount || null
+            });
+        }
+
+        console.log("Order recorded:", { orderId, total });
+
+        if (!total && session.amount_total) {
+            total = session.amount_total / 100;
+        }
+
+        await recordTransactionSafe({
+            orderId: String(orderId),
+            payerId: paymentRef,
+            payerEmail,
+            amount: total,
+            currency: "SGD",
+            status: "PAID",
+            time: new Date(),
+            paymentMethod: "STRIPE",
+            paymentRef
+        });
 
         req.session.stripeCompleted = session.id;
         req.session.stripePending = null;
@@ -473,10 +671,48 @@ app.get('/stripe/success', checkAuthenticated, async (req, res) => {
     }
 });
 
+// STRIPE webhook (reliable payment status updates)
+app.post('/webhook/stripe', async (req, res) => {
+    if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+        return res.status(400).send("Stripe webhook not configured");
+    }
+    if (!req.rawBody) {
+        return res.status(400).send("Stripe webhook raw body missing");
+    }
+
+    const sig = req.headers["stripe-signature"];
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(
+            req.rawBody,
+            sig,
+            process.env.STRIPE_WEBHOOK_SECRET
+        );
+    } catch (err) {
+        console.error("Stripe webhook signature failed:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+        if (event.type === "payment_intent.succeeded") {
+            await syncStripePaymentIntent(event.data.object, "PAID");
+        } else if (event.type === "payment_intent.payment_failed") {
+            await syncStripePaymentIntent(event.data.object, "FAILED");
+        }
+    } catch (err) {
+        console.error("Stripe webhook handling error:", err);
+    }
+
+    res.json({ received: true });
+});
+
 // NETS QR (Sandbox) - use controller (2FA disabled for testing)
 app.post('/api/nets/qr-request', checkAuthenticated, async (req, res) => {
     try {
         const userId = req.session.user.id;
+        const { deliveryType = "NOW", scheduledAt = null, promoCode = "" } = req.body || {};
+        const Delivery = require("./services/deliveryService");
+        const Promo = require("./services/promoService");
         const cart = await new Promise((resolve, reject) => {
             Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
         });
@@ -485,7 +721,14 @@ app.post('/api/nets/qr-request', checkAuthenticated, async (req, res) => {
             return res.status(400).json({ error: "Cart is empty" });
         }
 
-        const cartTotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+        const benefits = await computeTotalWithBenefits(userId, cart);
+        const promo = Promo.applyPromo(promoCode, benefits.base);
+        const promoDiscount = promo.applied ? promo.discount : 0;
+        const cartTotal = Math.max(0.5, benefits.base + benefits.deliveryFee - benefits.discount - promoDiscount);
+        if (deliveryType === "SCHEDULED") {
+            const check = Delivery.validateSchedule(scheduledAt);
+            if (!check.valid) return res.status(400).json({ error: check.message });
+        }
         
         console.log("POST /api/nets/qr-request - Cart total:", cartTotal);
 
@@ -512,7 +755,11 @@ app.post('/api/nets/qr-request', checkAuthenticated, async (req, res) => {
             txnId,
             txnRetrievalRef: qrResult.txnRetrievalRef,
             amount: cartTotal,
-            userId
+            userId,
+            deliveryType,
+            scheduledAt,
+            promoCode,
+            promoDiscount
         };
 
         // Return in format expected by checkout.ejs
@@ -658,8 +905,24 @@ app.get('/api/nets/query', checkAuthenticated, async (req, res) => {
 // PAYPAL (CA2) - CREATE ORDER (2FA disabled for testing)
 app.post('/api/paypal/create-order', checkAuthenticated, async (req, res) => {
     try {
-        const { amount } = req.body;
-        if (!amount) return res.status(400).json({ error: "Amount is required" });
+        let { amount, deliveryType = "NOW", scheduledAt = null, promoCode = "" } = req.body || {};
+
+        const userId = req.session.user.id;
+        const cart = await new Promise((resolve, reject) => {
+            Cart.getCart(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+        });
+
+        const benefits = await computeTotalWithBenefits(userId, cart);
+        const Delivery = require("./services/deliveryService");
+        const Promo = require("./services/promoService");
+        const promo = Promo.applyPromo(promoCode, benefits.base);
+        const promoDiscount = promo.applied ? promo.discount : 0;
+        amount = Math.max(0.5, benefits.base + benefits.deliveryFee - benefits.discount - promoDiscount).toFixed(2);
+
+        if (deliveryType === "SCHEDULED") {
+            const check = Delivery.validateSchedule(scheduledAt);
+            if (!check.valid) return res.status(400).json({ error: check.message });
+        }
 
         const ppOrder = await paypal.createOrder(amount);
 
@@ -669,9 +932,19 @@ app.post('/api/paypal/create-order', checkAuthenticated, async (req, res) => {
             paymentStatus: 'PENDING',
             paymentRef: ppOrder.id,
             payerEmail: req.session.user.email,
-            clearCart: false
+            clearCart: false,
+            forceTotal: Number(amount)
         });
         req.session.paypalPendingOrderId = pending.orderId;
+        req.session.paypalBenefits = benefits;
+        await updateOrderExtras(pending.orderId, {
+            deliveryType,
+            scheduledAt: deliveryType === "SCHEDULED" ? scheduledAt : null,
+            etaMin: Delivery.computeETA({ deliveryType, scheduledAt, total: amount }).etaMinMinutes || null,
+            etaMax: Delivery.computeETA({ deliveryType, scheduledAt, total: amount }).etaMaxMinutes || null,
+            promoCode: promoCode || null,
+            promoDiscount
+        });
 
         return res.json({ id: ppOrder.id });
     } catch (err) {
@@ -712,15 +985,15 @@ app.post('/api/paypal/capture-order', checkAuthenticated, async (req, res) => {
             return res.status(400).json({ error: "No pending order found for this payment" });
         }
 
-        await new Promise((resolve, reject) =>
-            db.query(
-                `UPDATE orders 
-                 SET payment_status='PAID', payment_method='PAYPAL', payment_ref=?, payer_email=?, paid_at=NOW()
-                 WHERE id=?`,
-                [orderID, payerEmail, orderId],
-                (err) => (err ? reject(err) : resolve())
-            )
-        );
+            await new Promise((resolve, reject) =>
+                db.query(
+                    `UPDATE orders 
+                     SET payment_status='PAID', payment_method='PAYPAL', payment_ref=?, payer_email=?, paid_at=NOW()
+                     WHERE id=?`,
+                    [orderID, payerEmail, orderId],
+                    (err) => (err ? reject(err) : resolve())
+                )
+            );
 
         await new Promise((resolve, reject) =>
             Cart.clearCart(userId, (err) => (err ? reject(err) : resolve()))
@@ -755,13 +1028,27 @@ app.post('/api/paypal/capture-order', checkAuthenticated, async (req, res) => {
 
 // ORDERS + INVOICE
 app.get('/orders', checkAuthenticated, ensure2FA, OrderController.list);
+app.get('/refunds', checkAuthenticated, ensure2FA, OrderController.refundsPage);
+app.get('/order/:id', checkAuthenticated, ensure2FA, OrderController.detail);
+app.get('/transactions', checkAuthenticated, ensure2FA, OrderController.transactions);
+app.get('/subscription', checkAuthenticated, ensure2FA, SubscriptionController.view);
+app.post('/subscription/subscribe', checkAuthenticated, ensure2FA, SubscriptionController.subscribe);
+app.post('/subscription/cancel', checkAuthenticated, ensure2FA, SubscriptionController.cancel);
+app.post('/api/subscription/paypal/create-order', checkAuthenticated, ensure2FA, SubscriptionController.createPaypalOrder);
+app.post('/api/subscription/paypal/capture-order', checkAuthenticated, ensure2FA, SubscriptionController.capturePaypalOrder);
 app.get('/invoice/:id', checkAuthenticated, ensure2FA, InvoiceController.download);
 
 // ADMIN — View ALL customer orders
 app.get('/admin/orders', checkAuthenticated, ensure2FA, checkAdmin, OrderController.adminList);
+app.get('/admin/subscriptions', checkAuthenticated, ensure2FA, checkAdmin, SubscriptionController.adminList);
+app.post('/admin/refund/stripe/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.stripe);
+app.post('/admin/refund/paypal/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.paypal);
+app.post('/admin/refund/reject/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.reject);
+app.post('/admin/refund/process/:id', checkAuthenticated, ensure2FA, checkAdmin, RefundController.processManual);
+app.post('/refund/request/:id', checkAuthenticated, RefundController.request);
 
 // START SERVER
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, async () => {
     try {
         await reconcilePayments();
@@ -770,4 +1057,51 @@ app.listen(PORT, async () => {
         console.error("Reconciliation error:", err);
     }
     console.log("Server running at http://localhost:" + PORT);
+});
+app.get('/api/orders/:id/tracking', checkAuthenticated, async (req, res) => {
+    const orderId = req.params.id;
+    const Delivery = require('./services/deliveryService');
+    try {
+        const order = await new Promise((resolve, reject) => {
+            db.query('SELECT * FROM orders WHERE id=?', [orderId], (err, rows) => err ? reject(err) : resolve(rows?.[0]));
+        });
+        if (!order) return res.status(404).json({ error: 'Not found' });
+        if (req.session.user.role !== 'admin' && Number(order.user_id) !== Number(req.session.user.id)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const etaText = order.delivery_type === 'SCHEDULED' && order.scheduledAt
+            ? Delivery.computeETA({ deliveryType: 'SCHEDULED', scheduledAt: order.scheduledAt })?.etaText
+            : Delivery.computeETA({ deliveryType: 'NOW', total: order.total_amount, scheduledAt: null })?.etaText;
+        res.json({
+            status: order.delivery_status || 'PREPARING',
+            updatedAt: order.deliveryUpdatedAt || order.order_date,
+            etaText
+        });
+    } catch (err) {
+        console.error('tracking error', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/admin/orders/:id/delivery-status', checkAuthenticated, ensure2FA, checkAdmin, (req, res) => {
+    const orderId = req.params.id;
+    const { status } = req.body || {};
+    const allowed = ['PREPARING','OUT_FOR_DELIVERY','DELIVERED'];
+    if (!allowed.includes(status)) {
+        req.flash('error', 'Invalid status');
+        return res.redirect('/admin/orders');
+    }
+    db.query(
+        `UPDATE orders SET delivery_status=?, deliveryUpdatedAt=NOW() WHERE id=?`,
+        [status, orderId],
+        (err) => {
+            if (err) {
+                console.error('update delivery status error', err);
+                req.flash('error', 'Failed to update');
+            } else {
+                req.flash('success', 'Delivery status updated');
+            }
+            res.redirect('/admin/orders');
+        }
+    );
 });

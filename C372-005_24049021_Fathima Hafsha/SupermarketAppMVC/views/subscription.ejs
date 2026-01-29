@@ -1,0 +1,190 @@
+﻿<%- include("partials/header"); %>
+
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <p class="text-muted mb-1">Transparent Pricing Plan</p>
+    <h2 class="fw-bold">Choose the plan that fits you</h2>
+  </div>
+
+  <% const active = sub && sub.status === 'ACTIVE' && (!sub.endDate || new Date(sub.endDate).getTime() >= Date.now()); %>
+
+  <div class="row g-4 justify-content-center">
+    <% const cards = [
+      { key: 'BASIC', title: 'Basic Plan', desc: 'Free delivery ≥ $10', price: pricing?.BASIC || 4.99, points: ['Free delivery on orders ≥ $10','Standard support'] },
+      { key: 'PREMIUM', title: 'Premium Plan', desc: 'Free delivery ≥ $5 + $1.50 off', price: pricing?.PREMIUM || 9.99, points: ['Free delivery on orders ≥ $5','$1.50 off every cart','Priority support'] }
+    ]; %>
+    <% cards.forEach(c => { const isCurrent = active && sub.plan === c.key; %>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 pricing-card">
+          <div class="card-body p-3 pb-0 text-center">
+            <p class="fw-bold mb-1"><%= c.title %></p>
+            <p class="text-muted small mb-3"><%= c.desc %></p>
+            <div class="py-3 mb-2 rounded bg-light">
+              <div class="fs-3 fw-bold text-dark">$<%= c.price.toFixed(2) %> <span class="fs-6 text-muted">/ month</span></div>
+              <div class="text-muted small">Includes delivery benefits</div>
+              <ul class="list-unstyled small text-start mt-2">
+                <% c.points.forEach(p => { %>
+                  <li><i class="bi bi-check2 text-success me-1"></i><%= p %></li>
+                <% }) %>
+              </ul>
+            </div>
+          </div>
+          <div class="card-footer bg-dark text-white border-0 text-center">
+            <% if (isCurrent) { %>
+              <button class="btn btn-outline-light w-100" disabled>Current plan</button>
+            <% } else { %>
+              <button type="button" class="btn btn-outline-light w-100 select-plan" data-plan="<%= c.key %>" data-price="<%= c.price.toFixed(2) %>">
+                Choose <%= c.key === 'BASIC' ? 'Basic' : 'Premium' %>
+              </button>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="row g-3 mt-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <small class="text-muted">Status</small>
+              <div class="fw-bold"><%= active ? 'ACTIVE' : sub ? sub.status : 'NONE' %></div>
+            </div>
+            <span class="badge <%= active ? 'bg-success' : (sub && sub.status === 'CANCELLED') ? 'bg-warning text-dark' : 'bg-secondary' %>"><%= active ? 'ACTIVE' : sub ? sub.status : 'NONE' %></span>
+          </div>
+          <% if (sub) { %>
+            <p class="mb-1 small">Start: <strong><%= new Date(sub.startDate).toLocaleString() %></strong></p>
+            <% if (sub.endDate) { %>
+            <p class="mb-1 small">Ends: <strong><%= new Date(sub.endDate).toLocaleString() %></strong></p>
+            <% } %>
+            <p class="mb-1 small">Auto renew: <strong><%= sub.autoRenew ? 'Yes' : 'No' %></strong></p>
+          <% } else { %>
+            <p class="text-muted">No active subscription. Select a plan to start.</p>
+          <% } %>
+
+          <% if (active) { %>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <button type="button" class="btn btn-outline-primary" id="sub-paypal-btn"><i class="bi bi-arrow-repeat me-1"></i> Change / Upgrade</button>
+              <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal"><i class="bi bi-x-circle me-1"></i> Cancel</button>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3">Secure checkout</h5>
+          <form id="sub-paypal-form" class="row g-3">
+            <input type="hidden" name="plan" id="plan" value="BASIC">
+            <div class="col-12 d-flex align-items-center">
+              <input class="form-check-input me-2" type="checkbox" name="autoRenew" id="autoRenew">
+              <label class="form-check-label" for="autoRenew">Auto renew monthly</label>
+            </div>
+            <div class="col-12">
+              <p class="small text-muted mb-1"><i class="bi bi-lock-fill me-1"></i> PayPal secure checkout</p>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small">Selected plan</span>
+                <span class="fw-bold" id="selected-plan-label">Basic • $<%= (pricing?.BASIC || 4.99).toFixed(2) %>/mo</span>
+              </div>
+              <button type="button" id="sub-paypal-btn" class="btn btn-primary w-100">
+                <span class="spinner-border spinner-border-sm me-2 d-none" id="sub-spinner"></span>
+                Pay with PayPal
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cancel subscription</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to cancel? You will keep benefits until the end of the current period.
+      </div>
+      <div class="modal-footer">
+        <form action="/subscription/cancel" method="POST" class="d-inline">
+          <input type="hidden" name="id" value="<%= sub ? sub.id : '' %>">
+          <input type="hidden" name="mode" value="end">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Keep subscription</button>
+          <button class="btn btn-danger" type="submit">Confirm cancel</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.paypal.com/sdk/js?client-id=<%= paypalClientId %>&currency=SGD&disable-funding=card"></script>
+<script>
+(() => {
+  const btn = document.getElementById('sub-paypal-btn');
+  const spinner = document.getElementById('sub-spinner');
+  const planInput = document.getElementById('plan');
+  if (!btn) return;
+  if (!"<%= paypalClientId %>") {
+    btn.disabled = true;
+    btn.textContent = 'PayPal not configured';
+    return;
+  }
+  document.querySelectorAll('.select-plan').forEach(el => {
+    el.addEventListener('click', () => {
+      planInput.value = el.dataset.plan;
+      const price = el.dataset.price || (el.dataset.plan === 'PREMIUM' ? '<%= (pricing?.PREMIUM || 9.99).toFixed(2) %>' : '<%= (pricing?.BASIC || 4.99).toFixed(2) %>');
+      document.getElementById('selected-plan-label').textContent = `${el.dataset.plan === 'PREMIUM' ? 'Premium' : 'Basic'} • $${price}/mo`;
+      btn.textContent = `Pay $${price}/mo with PayPal`;
+    });
+  });
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    try {
+      const form = document.getElementById('sub-paypal-form');
+      const fd = new FormData(form);
+      const body = {
+        plan: fd.get('plan'),
+        autoRenew: fd.get('autoRenew') === 'on'
+      };
+      const res = await fetch('/api/subscription/paypal/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.id) throw new Error(data.error || 'Unable to create PayPal order');
+      const paypalButtons = paypal.Buttons({
+        createOrder: () => data.id,
+        onApprove: async (details) => {
+          const cap = await fetch('/api/subscription/paypal/capture-order', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+            body: JSON.stringify({ orderID: details.orderID })
+          });
+          const r = await cap.json();
+          if (!cap.ok || !r.success) throw new Error(r.error || 'Capture failed');
+          window.location.reload();
+        },
+        onCancel: () => { btn.disabled = false; spinner.classList.add('d-none'); btn.textContent = 'Pay with PayPal'; },
+        onError: (err) => { alert(err.message || 'PayPal error'); btn.disabled = false; spinner.classList.add('d-none'); btn.textContent = 'Pay with PayPal'; }
+      });
+      paypalButtons.render('#sub-paypal-form');
+    } catch (err) {
+      alert(err.message || 'Unable to start PayPal');
+      btn.disabled = false;
+    } finally {
+      spinner.classList.add('d-none');
+    }
+  });
+})();
+</script>
+
+<%- include("partials/footer"); %>

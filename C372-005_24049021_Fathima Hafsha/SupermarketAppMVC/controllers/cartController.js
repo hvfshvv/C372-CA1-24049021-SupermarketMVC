@@ -11,9 +11,10 @@ const CartController = {
     add: (req, res) => {
         const userId = req.session.user.id;
         const productId = req.params.id;
-        let quantity = Number(req.body.quantity);
+        let qtyToAdd = Number(req.body.quantity);
 
-        if (!quantity || quantity < 1) quantity = 1;
+        // Treat the incoming quantity as "add this many more"
+        if (!qtyToAdd || qtyToAdd < 1) qtyToAdd = 1;
 
         Product.getById(productId, (err, product) => {
             if (err || !product) {
@@ -28,7 +29,7 @@ const CartController = {
                 return res.redirect("/shopping");
             }
 
-            // Get cart to check existing quantity
+            // Get cart to check existing quantity (for messaging only)
             Cart.getCart(userId, (err2, cartItems) => {
                 if (err2) {
                     req.flash("error", "Failed to load cart");
@@ -38,39 +39,39 @@ const CartController = {
                 const existingItem = cartItems.find(i => Number(i.product_id) === Number(productId));
                 const inCartNow = existingItem ? Number(existingItem.quantity) : 0;
 
-                // Maximum allowed = stock + what user already has
-                let maxQty = currentStock + inCartNow;
-
-                // Clamp quantity
-                if (quantity > maxQty) {
-                    quantity = maxQty;
+                // Clamp to what is actually available to add right now
+                if (qtyToAdd > currentStock) {
+                    qtyToAdd = currentStock;
                     req.flash(
                         "stockError",
-                        `Maximum stock available for ${product.productName} is ${maxQty}. ` +
-                        `Your cart quantity has been set to ${maxQty}.`
+                        `Only ${currentStock} more ${product.productName} available. ` +
+                        `We added ${qtyToAdd}. Your cart now has ${inCartNow + qtyToAdd}.`
                     );
                 } else {
                     req.flash("success", "Item added to cart.");
                 }
 
-                // Amount to add = desired total - current cart amount
-                const amountToAdd = quantity - inCartNow;
-
-                // If no change
-                if (amountToAdd <= 0) {
-                    return res.redirect("/cart");
+                if (qtyToAdd <= 0) {
+                    return res.redirect("/shopping");
                 }
 
-                // Add or update cart
-                Cart.addItem(userId, productId, amountToAdd, (err3) => {
+                // Add or update cart using additive quantity
+                Cart.addItem(userId, productId, qtyToAdd, (err3, result) => {
                     if (err3) {
                         console.error("Cart.addItem error:", err3);
                         req.flash("error", "Unable to add to cart.");
                         return res.redirect("/shopping");
                     }
 
-                    // Reduce stock by actual added amount
-                    Product.reduceStock(productId, amountToAdd, (err4) => {
+                    const added = result?.added ?? qtyToAdd;
+
+                    if (added <= 0) {
+                        req.flash("stockError", `${product.productName} is out of stock.`);
+                        return res.redirect("/shopping");
+                    }
+
+                    // Reduce stock by the actual amount added
+                    Product.reduceStock(productId, added, (err4) => {
                         if (err4) {
                             console.error("Stock update error:", err4);
                             req.flash("error", "Cart added but stock update failed.");
@@ -235,9 +236,14 @@ const CartController = {
             let total = 0;
             cart.forEach(i => total += Number(i.price) * i.quantity);
 
+            // Default delivery now ETA
+            const Delivery = require("../services/deliveryService");
+            const eta = Delivery.computeETA({ deliveryType: "NOW", total });
+
             res.render("checkout", {
                 cart,
                 total,
+                eta,
                 paypalClientId: process.env.PAYPAL_CLIENT_ID,
                 currency: process.env.PAYPAL_CURRENCY || "SGD",
                 stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ""
@@ -316,7 +322,7 @@ const CartController = {
                 return res.redirect("/orders");
             }
 
-            res.render("checkoutSuccess", { order, items });
+            res.render("checkoutSuccess", { order, items, user: req.session.user });
         });
     }
 

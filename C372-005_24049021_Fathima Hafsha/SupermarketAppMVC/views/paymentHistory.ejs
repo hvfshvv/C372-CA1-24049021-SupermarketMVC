@@ -1,0 +1,39 @@
+<%- include('partials/header'); %>
+
+<h2 class="fw-bold mb-3">Payment History</h2>
+<div class="card shadow-sm p-3">
+    <% if (!transactions || transactions.length === 0) { %>
+        <div class="alert alert-info mb-0">No transactions yet.</div>
+    <% } else { %>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Time</th>
+                        <th>Order</th>
+                        <th>Amount</th>
+                        <th>Currency</th>
+                        <th>Method</th>
+                        <th>Status</th>
+                        <th>Ref</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% transactions.forEach(t => { %>
+                        <tr>
+                            <td><%= new Date(t.time).toLocaleString() %></td>
+                            <td>#<%= t.orderId %></td>
+                            <td>$<%= Number(t.amount).toFixed(2) %></td>
+                            <td><%= (t.currency || 'SGD').toUpperCase() %></td>
+                            <td><%= t.payment_method || 'UNKNOWN' %></td>
+                            <td><%= t.status || 'N/A' %></td>
+                            <td><%= t.payment_ref || t.refund_id || t.capture_id || '-' %></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</div>
+
+<%- include('partials/footer'); %>

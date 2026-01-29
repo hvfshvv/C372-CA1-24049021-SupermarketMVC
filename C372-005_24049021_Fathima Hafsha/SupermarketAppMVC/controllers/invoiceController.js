@@ -96,12 +96,11 @@ const InvoiceController = {
                 doc.fontSize(10).text("Thank you for shopping with SupermarketAppMVC!", {
                     align: "center",
                 });
-                doc.text(`Payment Method: ${order.payment_method || 'UNKNOWN'}`);
-                doc.text(`Payment Status: ${order.payment_status || 'PENDING'}`);
-                doc.text(`Payment Ref: ${order.payment_ref || 'N/A'}`);
-                doc.text(`Payer Email: ${order.payer_email || 'N/A'}`);
-                if (order.paid_at) doc.text(`Paid At: ${order.paid_at}`);
-                doc.moveDown();
+                if (order.payment_status && order.payment_status.toUpperCase().includes("REFUND")) {
+                    doc.moveDown(0.5);
+                    doc.text(`Refund Status: ${order.payment_status}`);
+                    if (order.payment_ref) doc.text(`Refund Ref: ${order.payment_ref}`);
+                }
 
                 doc.end();
             });

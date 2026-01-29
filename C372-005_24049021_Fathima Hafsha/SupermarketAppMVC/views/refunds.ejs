@@ -1,0 +1,75 @@
+<%- include("partials/header"); %>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-0">Refund Center</h2>
+        <p class="text-muted mb-0">Submit a refund request for paid Stripe or PayPal orders (within 7 days of purchase).</p>
+    </div>
+    <a href="/orders" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Orders
+    </a>
+</div>
+
+<% if (!orders || orders.length === 0) { %>
+    <div class="card shadow-sm p-3">
+        <div class="alert alert-info mb-0">You have no refundable orders yet.</div>
+    </div>
+<% } else { %>
+    <div class="row g-3">
+        <% orders.forEach(o => { %>
+            <div class="col-md-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <div class="fw-bold">Order #<%= o.id %></div>
+                                <div class="text-muted small"><%= new Date(o.order_date).toLocaleString() %></div>
+                            </div>
+                            <span class="badge bg-secondary text-uppercase"><%= o.payment_method || 'UNKNOWN' %></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Total</span>
+                            <span class="fw-bold">$<%= Number(o.total_amount).toFixed(2) %></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Payment</span>
+                            <% const payStatus = (o.payment_status || 'PENDING').toUpperCase(); %>
+                            <span class="badge <%= payStatus==='PAID'?'bg-success':payStatus==='PENDING'?'bg-secondary':payStatus.includes('REFUND')?'bg-warning text-dark':'bg-info' %>">
+                                <%= payStatus %>
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted">Refund</span>
+                            <% const rStat = (o.refundStatus || 'NONE').toUpperCase(); %>
+                            <span class="badge <%= rStat==='REQUESTED'?'bg-warning text-dark': rStat==='APPROVED'||rStat==='SUCCEEDED'?'bg-success': rStat==='REJECTED'?'bg-danger':'bg-secondary' %>">
+                                <%= rStat %>
+                            </span>
+                        </div>
+                        <% if ((o.refundStatus || 'NONE') === 'NONE') { %>
+                            <form action="/refund/request/<%= o.id %>" method="POST" class="mt-auto">
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted">Reason</label>
+                                    <textarea name="reason" rows="2" class="form-control" placeholder="Reason (required)" required></textarea>
+                                </div>
+                                <button class="btn btn-outline-danger w-100">Request Refund</button>
+                            </form>
+                        <% } else { %>
+                            <div class="alert alert-light border mt-auto mb-0">
+                                <div class="fw-bold mb-1">Latest update</div>
+                                <% if (o.latestTxn && o.latestTxn.refund_status) { %>
+                                    <div class="small"><%= o.latestTxn.refund_status %></div>
+                                <% } else if (o.refundReason) { %>
+                                    <div class="small"><%= o.refundReason %></div>
+                                <% } else { %>
+                                    <div class="small text-muted">No additional notes.</div>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+<% } %>
+
+<%- include("partials/footer"); %>

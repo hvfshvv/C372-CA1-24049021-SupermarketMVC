@@ -84,15 +84,22 @@ async function captureOrder(orderId) {
     }
     return data;
 }
-async function refundCapture(captureId) {
+async function refundCapture(captureId, amount) {
     const accessToken = await getAccessToken();
+    const body = amount ? {
+        amount: {
+            currency_code: 'SGD',
+            value: amount
+        }
+    } : {};
+
     const response = await fetch(`${PAYPAL_API}/v2/payments/captures/${captureId}/refund`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({})
+        body: JSON.stringify(body)
     });
     const data = await response.json().catch(async () => { throw new Error(await response.text()); });
     if (!response.ok) throw new Error(data.message || "PayPal refund failed");

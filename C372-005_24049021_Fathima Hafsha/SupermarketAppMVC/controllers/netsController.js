@@ -3,6 +3,7 @@ const Cart = require("../models/Cart");
 const Order = require("../models/Order");
 const Transaction = require("../models/Transaction");
 const netsService = require("../services/nets");
+const { computeTotalWithBenefits } = require("../services/benefits");
 
 // Local helper (mirrors app.js helper) to create order from cart with payment metadata
 async function createOrderFromCart(userId, options = {}) {
@@ -13,6 +14,7 @@ async function createOrderFromCart(userId, options = {}) {
         payerEmail = null,
         paidAt = null,
         clearCart = true,
+        forceTotal = null,
     } = options;
 
     const cart = await new Promise((resolve, reject) => {
@@ -20,10 +22,11 @@ async function createOrderFromCart(userId, options = {}) {
     });
     if (!cart.length) throw new Error("Cart empty");
 
-    const total = cart.reduce(
+    const computed = cart.reduce(
         (sum, item) => sum + Number(item.price) * Number(item.quantity),
         0
     );
+    const total = forceTotal !== null ? forceTotal : computed;
 
     const orderId = await new Promise((resolve, reject) => {
         Order.create(
@@ -71,10 +74,8 @@ async function requestQr(req, res) {
             return res.status(400).json({ error: "Cart is empty" });
         }
 
-        const total = cart.reduce(
-            (sum, item) => sum + Number(item.price) * Number(item.quantity),
-            0
-        );
+        const benefits = await computeTotalWithBenefits(userId, cart);
+        const total = benefits.total;
 
         console.log("NETS requestQr - Cart total:", total);
 
@@ -154,6 +155,7 @@ async function queryStatus(req, res) {
                     payerEmail: "NETS",
                     paidAt: new Date(),
                     clearCart: true,
+                    forceTotal: pending.amount ?? total,
                 }
             );
 

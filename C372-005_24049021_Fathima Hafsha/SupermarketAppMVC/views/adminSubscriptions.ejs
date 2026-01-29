@@ -1,0 +1,41 @@
+<%- include('partials/header'); %>
+
+<h2 class="fw-bold mb-3">All Subscriptions</h2>
+<div class="card shadow-sm p-3">
+  <% if (!subs || subs.length === 0) { %>
+    <div class="alert alert-info mb-0">No subscriptions found.</div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Email</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Auto Renew</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% subs.forEach(s => { %>
+            <tr>
+              <td><%= s.id %></td>
+              <td><%= s.username %></td>
+              <td><%= s.email %></td>
+              <td><%= s.plan %></td>
+              <td><%= s.status %></td>
+              <td><%= s.autoRenew ? 'Yes' : 'No' %></td>
+              <td><%= new Date(s.startDate).toLocaleString() %></td>
+              <td><%= s.endDate ? new Date(s.endDate).toLocaleString() : '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/footer'); %>
