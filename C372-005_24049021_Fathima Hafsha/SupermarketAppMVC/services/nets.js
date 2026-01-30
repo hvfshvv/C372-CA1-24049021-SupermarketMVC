@@ -31,7 +31,7 @@ const getAxiosConfig = () => {
  * @returns {Object} { qrDataUrl, txnRetrievalRef, ... }
  */
 exports.requestQr = async (options) => {
-  try {
+  const attemptRequest = async () => {
     const { txnId, amount, notifyMobile = 0 } = options;
 
     if (!txnId || !amount) {
@@ -87,7 +87,16 @@ exports.requestQr = async (options) => {
       networkStatus: qrData.network_status,
       fullResponse: qrData,
     };
+  };
+
+  try {
+    return await attemptRequest();
   } catch (error) {
+    const isTimeout = error.response?.status === 500 && /timeout/i.test(error.response?.data?.result?.message || "");
+    if (isTimeout) {
+      console.warn("NETS request timed out, retrying once...");
+      return await attemptRequest();
+    }
     console.error("NETS requestQr error:", {
       message: error.message,
       status: error.response?.status,
