@@ -95,10 +95,29 @@
           <div class="card-body">
             <h5 class="fw-bold mb-3">Order Items</h5>
             <div class="list-group list-group-flush">
-              <% items.forEach(item => { %>
+              <% items.forEach(item => { 
+                   const slug = (item.product_name || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'');
+                   const slugTight = (item.product_name || '').toLowerCase().replace(/[^a-z0-9]+/g,'');
+              %>
                 <div class="list-group-item d-flex align-items-center gap-3 py-3">
                   <div class="ratio ratio-1x1 flex-shrink-0" style="width:64px;">
-                    <img class="img-fluid rounded" src="<%= item.image || '/images/placeholder.png' %>" alt="<%= item.product_name %>" onerror="this.src='/images/placeholder.png'">
+                    <img class="img-fluid rounded"
+                         src="<%= item.image || ('/images/' + slug + '.png') %>"
+                         alt="<%= item.product_name %>"
+                         data-fidx="0"
+                         onerror="
+                           const alts = [
+                             '<%= item.image || '' %>',
+                             '/images/<%= slug %>.png',
+                             '/images/<%= slug %>.jpg',
+                             '/images/<%= slug %>.webp',
+                             '/images/<%= slugTight %>.png',
+                             '/images/<%= slugTight %>.jpg',
+                             '/images/placeholder.png'
+                           ].filter(Boolean);
+                           let i = parseInt(this.dataset.fidx || '0', 10);
+                           if (i < alts.length) { this.dataset.fidx = i + 1; this.src = alts[i]; }
+                         ">
                   </div>
                   <div class="flex-grow-1 min-width-0">
                     <div class="fw-semibold text-truncate"><%= item.product_name %></div>

@@ -158,3 +158,6 @@ const Order = {
         db.query(sql, [status, orderId], callback);
     }
 };
+
+// Export
+module.exports = Order;

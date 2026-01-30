@@ -1,0 +1,103 @@
+<%- include("partials/header"); %>
+
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold mb-0">All Customer Orders</h2>
+    <a class="btn btn-outline-primary btn-sm" href="/admin/fulfillment">
+      <i class="bi bi-truck me-1"></i> Go to Fulfillment
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <form class="row g-2 mb-3" method="GET">
+    <div class="col-md-3">
+      <input type="text" name="q" class="form-control form-control-sm" placeholder="Search customer / email / order"
+             value="<%= typeof q !== 'undefined' ? q : '' %>">
+    </div>
+    <div class="col-md-2">
+      <select name="status" class="form-select form-select-sm">
+        <option value="">Payment status</option>
+        <% ['PAID','PENDING','PROCESSING','CANCELLED','REFUNDED'].forEach(s=> { %>
+          <option value="<%= s %>" <%= status===s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="refund" class="form-select form-select-sm">
+        <option value="">Refund status</option>
+        <% ['REQUESTED','APPROVED','REJECTED','SUCCEEDED','NONE'].forEach(s=> { %>
+          <option value="<%= s %>" <%= refund===s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="method" class="form-select form-select-sm">
+        <option value="">Method</option>
+        <% ['PAYPAL','STRIPE','NETS','UNKNOWN'].forEach(s=> { %>
+          <option value="<%= s %>" <%= method===s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="delivery" class="form-select form-select-sm">
+        <option value="">Delivery status</option>
+        <% ['PREPARING','OUT_FOR_DELIVERY','DELIVERED'].forEach(s=> { %>
+          <option value="<%= s %>" <%= delivery===s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-md-1 d-grid">
+      <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+    </div>
+  </form>
+
+  <% if (!orders || orders.length === 0) { %>
+    <div class="alert alert-info">No orders found.</div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle shadow-sm">
+        <thead class="table-dark">
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Email</th>
+            <th>Total ($)</th>
+            <th>Date</th>
+            <th>Payment</th>
+            <th>Delivery</th>
+            <th>Refund</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orders.forEach(o => { %>
+            <tr>
+              <td class="fw-bold">#<%= o.order_id %></td>
+              <td><%= o.customer_name %></td>
+              <td class="text-muted small"><%= o.email %></td>
+              <td>$<%= Number(o.total_amount || 0).toFixed(2) %></td>
+              <td class="small text-muted"><%= new Date(o.order_date).toLocaleString() %></td>
+              <td>
+                <% const pstat = (o.payment_status || 'PENDING').toUpperCase(); %>
+                <% const pclass = pstat==='PAID' ? 'bg-success' : pstat==='REFUNDED' ? 'bg-info text-dark' : pstat==='CANCELLED' ? 'bg-danger' : pstat==='PROCESSING' ? 'bg-warning text-dark' : 'bg-secondary'; %>
+                <span class="badge <%= pclass %>"><%= pstat %></span>
+                <small class="text-muted d-block"><%= (o.payment_method || 'UNKNOWN').toUpperCase() %></small>
+              </td>
+              <td>
+                <% const dstat = (o.delivery_status || 'PREPARING').toUpperCase(); %>
+                <% const dclass = dstat==='DELIVERED' ? 'bg-success' : dstat==='OUT_FOR_DELIVERY' ? 'bg-info text-dark' : 'bg-secondary'; %>
+                <span class="badge <%= dclass %>"><%= dstat.replace(/_/g,' ') %></span>
+              </td>
+              <td>
+                <% const rstat = (o.refundStatus || 'NONE').toUpperCase(); %>
+                <% const rclass = rstat==='APPROVED' ? 'bg-success' : rstat==='REQUESTED' ? 'bg-warning text-dark' : rstat==='REJECTED' ? 'bg-danger' : 'bg-secondary'; %>
+                <span class="badge <%= rclass %>"><%= rstat %></span>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include("partials/footer"); %>

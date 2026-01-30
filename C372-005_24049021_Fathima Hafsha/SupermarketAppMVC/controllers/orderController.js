@@ -190,13 +190,7 @@ const OrderController = {
                 return res.status(500).send("Failed to load orders");
             }
             const Transaction = require("../models/Transaction");
-            let list = results || [];
-
-            // default: only undelivered or refund requested
-            list = list.filter(o =>
-                (o.delivery_status || "PREPARING") !== "DELIVERED" ||
-                ((o.refundStatus || "NONE").toUpperCase() === "REQUESTED")
-            );
+            const list = results || [];
 
             const withTxn = await Promise.all(
                 list.map(async (o) => {
@@ -207,8 +201,12 @@ const OrderController = {
                 })
             );
 
+            const activeOrders = withTxn.filter(o => (o.delivery_status || "PREPARING") !== "DELIVERED");
+            const deliveredOrders = withTxn.filter(o => (o.delivery_status || "PREPARING") === "DELIVERED");
+
             res.render("adminFulfillment", {
-                orders: withTxn,
+                activeOrders,
+                deliveredOrders,
                 user: req.session.user
             });
         }));

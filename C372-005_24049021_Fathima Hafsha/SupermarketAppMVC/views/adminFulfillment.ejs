@@ -2,13 +2,16 @@
 
 <div class="container-fluid py-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold mb-0">Fulfillment Queue</h2>
+    <div>
+      <h2 class="fw-bold mb-0">Fulfillment Queue</h2>
+      <small class="text-muted">Update delivery states and handle refunds.</small>
+    </div>
     <a class="btn btn-outline-secondary btn-sm" href="/admin/orders">
       <i class="bi bi-arrow-left me-1"></i> Back to Orders
     </a>
   </div>
 
-  <% if (!orders || orders.length === 0) { %>
+  <% if ((!activeOrders || activeOrders.length === 0) && (!deliveredOrders || deliveredOrders.length === 0)) { %>
     <div class="card border-0 shadow-sm">
       <div class="card-body text-center py-5">
         <i class="bi bi-check-circle fs-1 text-success d-block mb-3"></i>
@@ -17,7 +20,8 @@
       </div>
     </div>
   <% } else { %>
-    <div class="card shadow-sm border-0">
+    <!-- Active (Preparing / Out for delivery) -->
+    <div class="card shadow-sm border-0 mb-4">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 small">
           <thead class="table-light border-bottom">
@@ -31,10 +35,9 @@
             </tr>
           </thead>
           <tbody>
-            <% orders.forEach(o => { %>
+            <% (activeOrders || []).forEach(o => { %>
               <% const dstat = (o.delivery_status || 'PREPARING').toUpperCase(); %>
               <% const refund = (o.refundStatus || 'NONE').toUpperCase(); %>
-              <% const dclass = dstat==='DELIVERED' ? 'bg-success' : dstat==='OUT_FOR_DELIVERY' ? 'bg-info text-dark' : 'bg-secondary'; %>
               <tr>
                 <td class="fw-bold">#<%= o.order_id %></td>
                 <td class="small">
@@ -95,6 +98,47 @@
         </table>
       </div>
     </div>
+
+    <!-- Delivered -->
+    <% if (deliveredOrders && deliveredOrders.length) { %>
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-success text-white">
+        <strong>Delivered Orders</strong>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-success border-bottom">
+            <tr>
+              <th class="fw-bold">Order</th>
+              <th class="fw-bold">Customer</th>
+              <th class="fw-bold">Total</th>
+              <th class="fw-bold">Delivered At</th>
+              <th class="fw-bold">Payment</th>
+              <th class="fw-bold">Refund</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% deliveredOrders.forEach(o => { %>
+              <tr class="table-success">
+                <td class="fw-bold">#<%= o.order_id %></td>
+                <td class="small">
+                  <div><%= o.customer_name %></div>
+                  <div class="text-muted"><%= o.email %></div>
+                </td>
+                <td class="fw-bold">$<%= Number(o.total_amount).toFixed(2) %></td>
+                <td><%= o.deliveryUpdatedAt ? new Date(o.deliveryUpdatedAt).toLocaleString() : '-' %></td>
+                <td>
+                  <span class="badge bg-success"><%= o.payment_status || 'PAID' %></span>
+                  <small class="text-muted d-block"><%= o.payment_method || 'UNKNOWN' %></small>
+                </td>
+                <td><span class="badge bg-info text-dark"><%= o.refundStatus || 'NONE' %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
   <% } %>
 </div>
 
