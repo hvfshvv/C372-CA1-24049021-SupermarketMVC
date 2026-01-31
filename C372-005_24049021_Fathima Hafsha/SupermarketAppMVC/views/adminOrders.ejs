@@ -84,8 +84,9 @@
               </td>
               <td>
                 <% const dstat = (o.delivery_status || 'PREPARING').toUpperCase(); %>
-                <% const dclass = dstat==='DELIVERED' ? 'bg-success' : dstat==='OUT_FOR_DELIVERY' ? 'bg-info text-dark' : 'bg-secondary'; %>
-                <span class="badge <%= dclass %>"><%= dstat.replace(/_/g,' ') %></span>
+                <% const isNA = (pstat === 'CANCELLED' || pstat === 'REFUNDED'); %>
+                <% const dclass = isNA ? 'bg-light text-dark border' : dstat==='DELIVERED' ? 'bg-success' : dstat==='OUT_FOR_DELIVERY' ? 'bg-info text-dark' : 'bg-secondary'; %>
+                <span class="badge <%= dclass %>"><%= isNA ? 'N/A' : dstat.replace(/_/g,' ') %></span>
               </td>
               <td>
                 <% const rstat = (o.refundStatus || 'NONE').toUpperCase(); %>
